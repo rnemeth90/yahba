@@ -1,0 +1,26 @@
+package config
+
+type Config struct {
+	URL          string
+	concurrency  int
+	requests     int
+	method       string
+	headers      string
+	payload      string
+	timeout      int
+	RPS          int
+	insecure     bool
+	resolvers    string
+	proxy        string
+	keepAlive    bool
+	cookies      string
+	HTTP2        bool
+	HTTP3        bool
+	verbose      bool
+	outputFormat string
+}
+
+func (c *Config) Validate() (bool, error) {
+
+	return false, nil
+}
