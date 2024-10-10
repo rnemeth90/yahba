@@ -28,6 +28,9 @@ func init() {
 	pflag.BoolVar(&c.HTTP3, "http3", false, "use HTTP/3")
 	pflag.BoolVarP(&c.Verbose, "verbose", "v", false, "enable verbose mode")
 	pflag.StringVarP(&c.OutputFormat, "output", "o", "json", "output format (json/yaml/raw)")
+	pflag.BoolVar(&c.Compression, "compression", false, "use compression")
+	pflag.StringVar(&c.ProxyUser, "proxy-user", "", "proxy user name")
+	pflag.StringVar(&c.ProxyPassword, "proxy-password", "", "proxy password")
 }
 
 func main() {

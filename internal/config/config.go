@@ -3,23 +3,26 @@ package config
 import "slices"
 
 type Config struct {
-	URL          string
-	Concurrency  int
-	Requests     int
-	Method       string
-	Headers      string
-	Payload      string
-	Timeout      int
-	RPS          int
-	Insecure     bool
-	Resolvers    string
-	Proxy        string
-	KeepAlive    bool
-	Cookies      string
-	HTTP2        bool
-	HTTP3        bool
-	Verbose      bool
-	OutputFormat string
+	URL           string
+	Concurrency   int
+	Requests      int
+	Method        string
+	Headers       string
+	Payload       string
+	Timeout       int
+	RPS           int
+	Insecure      bool
+	Resolvers     string
+	KeepAlive     bool
+	Cookies       string
+	HTTP2         bool
+	HTTP3         bool
+	Verbose       bool
+	OutputFormat  string
+	Compression   bool
+	Proxy         string
+	ProxyUser     string
+	ProxyPassword string
 }
 
 var validOutputFormats = []string{"json", "yaml", "raw"}
@@ -49,6 +52,8 @@ func (config *Config) Validate() error {
 	if config.Timeout <= 0 {
 		return ErrInvalidTimeout
 	}
+
+	// check proxy config
 
 	if !slices.Contains(validOutputFormats, config.OutputFormat) {
 		return ErrInvalidOutputFormat
