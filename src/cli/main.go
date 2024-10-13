@@ -3,8 +3,10 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/rnemeth90/yahba/internal/config"
+	"github.com/rnemeth90/yahba/internal/util"
 	"github.com/spf13/pflag"
 )
 
@@ -12,13 +14,12 @@ var c config.Config
 
 func init() {
 	pflag.StringVarP(&c.URL, "url", "u", "", "specify the URL to stress test")
-	pflag.IntVarP(&c.Concurrency, "concurrency", "c", 10, "how many concurrent requests the tool should make")
 	pflag.IntVarP(&c.Requests, "requests", "r", 4, "the total number of requests that should be sent")
 	pflag.StringVarP(&c.Method, "method", "m", "GET", "which HTTP method to use (GET, POST, etc.)")
 	pflag.StringVarP(&c.Headers, "headers", "H", "", "allows adding custom headers to the requests")
 	pflag.StringVarP(&c.Payload, "payload", "p", "", "for POST and PUT requests, users can define the request body")
 	pflag.IntVarP(&c.Timeout, "timeout", "t", 10, "the timeout for each request in seconds")
-	pflag.IntVarP(&c.RPS, "rps", "r", 1, "requests per second")
+	pflag.IntVar(&c.RPS, "rps", 1, "requests per second")
 	pflag.BoolVarP(&c.Insecure, "insecure", "i", false, "disable SSL/TLS certificate verification")
 	pflag.StringVar(&c.Resolvers, "resolvers", "", "custom DNS resolvers (comma-separated list)")
 	pflag.StringVarP(&c.Proxy, "proxy", "P", "", "proxy server address")
@@ -45,6 +46,17 @@ func main() {
 func run(c config.Config) error {
 	if err := c.Validate(); err != nil {
 		return err
+	}
+
+	headers := []string{}
+
+	// Parse headers here, so we only parse them once
+	if c.Headers != "" {
+		if strings.Contains(c.Headers, ",") {
+			headers = util.ParseHeaders(c.Headers)
+		} else {
+			headers = util.ParseHeader(c.Headers)
+		}
 	}
 
 	return nil

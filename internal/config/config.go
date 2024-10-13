@@ -41,10 +41,6 @@ func (config *Config) Validate() error {
 		return ErrMissingPayload
 	}
 
-	if config.Concurrency <= 0 {
-		return ErrInvalidConcurrency
-	}
-
 	if config.Requests <= 0 {
 		return ErrInvalidRequests
 	}
@@ -54,6 +50,10 @@ func (config *Config) Validate() error {
 	}
 
 	// check proxy config
+
+	if config.HTTP2 && config.HTTP3 {
+		return ErrInvalidHTTPConfig
+	}
 
 	if !slices.Contains(validOutputFormats, config.OutputFormat) {
 		return ErrInvalidOutputFormat

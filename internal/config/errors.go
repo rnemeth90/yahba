@@ -18,4 +18,5 @@ var (
 	ErrInvalidCookies      = errors.New("Invalid cookies format. Expected a semi-colon separated list of 'Key=Value' pairs")
 	ErrHTTP2Disabled       = errors.New("HTTP/2 is disabled")
 	ErrHTTP3Disabled       = errors.New("HTTP/3 is disabled")
+	ErrInvalidHTTPConfig   = errors.New("Invalid HTTP config. Only one value can be supplied")
 )
