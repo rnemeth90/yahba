@@ -26,7 +26,6 @@ func init() {
 	pflag.BoolVarP(&c.KeepAlive, "keep-alive", "k", false, "use keep-alives")
 	pflag.StringVarP(&c.Cookies, "cookies", "C", "", "set cookies")
 	pflag.BoolVar(&c.HTTP2, "http2", true, "use HTTP/2")
-	pflag.BoolVar(&c.HTTP3, "http3", false, "use HTTP/3")
 	pflag.BoolVarP(&c.Verbose, "verbose", "v", false, "enable verbose mode")
 	pflag.StringVarP(&c.OutputFormat, "output", "o", "json", "output format (json/yaml/raw)")
 	pflag.BoolVar(&c.Compression, "compression", false, "use compression")
@@ -48,9 +47,8 @@ func run(c config.Config) error {
 		return err
 	}
 
-	headers := []string{}
-
 	// Parse headers here, so we only parse them once
+	headers := []string{}
 	if c.Headers != "" {
 		if strings.Contains(c.Headers, ",") {
 			headers = util.ParseHeaders(c.Headers)

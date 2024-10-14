@@ -48,7 +48,7 @@ func (w *Worker) work(wg *sync.WaitGroup) {
 			continue
 		}
 
-		req.Header.Add
+		// w.Config.Headers
 
 		resp, err := w.Client.Do(req)
 		if err != nil {
