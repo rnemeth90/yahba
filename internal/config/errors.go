@@ -4,9 +4,9 @@ import "errors"
 
 var (
 	// General Errors
-	ErrMissingURL          = errors.New("URL is required, please specify it using --url or -u")
+	ErrMissingHost         = errors.New("URL is required, please specify it using --url or -u")
 	ErrInvalidMethod       = errors.New("Invalid HTTP method. Supported methods are GET, POST, PUT, DELETE, etc.")
-	ErrMissingPayload      = errors.New("Payload is required when using POST or PUT methods")
+	ErrMissingBody         = errors.New("Payload is required when using POST or PUT methods")
 	ErrInvalidConcurrency  = errors.New("Concurrency must be greater than 0")
 	ErrInvalidRequests     = errors.New("Requests must be greater than 0")
 	ErrInvalidTimeout      = errors.New("Timeout must be greater than 0")

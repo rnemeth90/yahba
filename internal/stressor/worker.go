@@ -1,6 +1,8 @@
 package stressor
 
 import (
+	"bytes"
+	"log"
 	"net/http"
 	"sync"
 	"time"
@@ -13,14 +15,14 @@ type Worker struct {
 	ID      int
 	Jobs    <-chan Job
 	Results chan<- Result
-	Config  config.Config
 	Client  *http.Client
+	Config  config.Config
 }
 
 type Job struct {
-	URL     string
-	Method  string
-	Payload string
+	Host   string
+	Method string
+	Body   string
 }
 
 type Result struct {
@@ -29,12 +31,13 @@ type Result struct {
 	Error      error
 }
 
-func newWorker(id int, jobs chan Job, results chan Result, client *http.Client) *Worker {
+func newWorker(id int, jobs <-chan Job, results chan<- Result, client *http.Client, cfg config.Config) *Worker {
 	return &Worker{
 		ID:      id,
 		Jobs:    jobs,
 		Results: results,
 		Client:  client,
+		Config:  cfg,
 	}
 }
 
@@ -42,13 +45,19 @@ func (w *Worker) work(wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	for job := range w.Jobs {
-		req, err := http.NewRequest(job.Method, job.URL, nil)
+		log.Printf("worker %d processing job %s", w.ID, job.Host)
+
+		req, err := http.NewRequest(job.Method, job.Host, bytes.NewReader([]byte(job.Body)))
 		if err != nil {
 			w.Results <- Result{WorkerID: w.ID, Error: err}
 			continue
 		}
 
-		// w.Config.Headers
+		for _, h := range w.Config.ParsedHeaders {
+			req.Header.Add(h.Key, h.Value)
+		}
+
+		log.Println("headers:", req.Header)
 
 		resp, err := w.Client.Do(req)
 		if err != nil {
@@ -56,49 +65,51 @@ func (w *Worker) work(wg *sync.WaitGroup) {
 			continue
 		}
 
-		w.Results <- Result{ResultCode: resp.StatusCode, Error: err, WorkerID: w.ID}
+		w.Results <- Result{ResultCode: resp.StatusCode, WorkerID: w.ID, Error: nil}
 		resp.Body.Close()
 	}
 }
 
-func WorkerPool(config config.Config, jobs []Job) {
-	client, err := client.NewClient(config)
+func WorkerPool(cfg config.Config, jobs []Job) {
+	client, err := client.NewClient(cfg)
 	if err != nil {
-
+		log.Fatalf("Error creating HTTP client: %v", err)
 	}
 
 	jobChan := make(chan Job, len(jobs))
 	resultChan := make(chan Result, len(jobs))
 	wg := &sync.WaitGroup{}
 
-	// create a worker for each request. Requests = total requests
-	for i := 0; i < config.Requests; i++ {
+	for i := 0; i < cfg.RPS; i++ {
+		worker := newWorker(i, jobChan, resultChan, client, cfg)
+		wg.Add(1)
+		go worker.work(wg)
+	}
 
-		// but only create config.Rps workers per second
-		for j := 0; j < config.RPS; j++ {
-			worker := newWorker(j, jobChan, resultChan, client)
-			wg.Add(1)
-			go worker.work(wg)
-			time.Sleep(1 * time.Second)
+	// Throttle the rate at which jobs are added to the job channel based on cfg.RPS
+	ticker := time.NewTicker(time.Second / time.Duration(cfg.RPS))
+	defer ticker.Stop()
+
+	// put jobs on the job channel
+	go func() {
+		for _, job := range jobs {
+			<-ticker.C // Limit the job addition based on the RPS
+			log.Printf("Sending job to jobChan: %s", job.Host)
+			jobChan <- job
 		}
-	}
+		close(jobChan)
+	}()
 
-	for _, job := range jobs {
-		jobChan <- job
-	}
-	close(jobChan)
-
+	// Wait for all workers to finish
 	wg.Wait()
 	close(resultChan)
 
+	log.Println("parsing results...")
 	for result := range resultChan {
 		if result.Error != nil {
-			// do something if error is not nil
-			// create results and return for report?
-
+			log.Printf("worker %d: error processing job: %v", result.WorkerID, result.Error)
 		} else {
-			// do something if the request was successful
-
+			log.Printf("worker %d: got %d from %s", result.WorkerID, result.ResultCode, cfg.Host)
 		}
 	}
 }
