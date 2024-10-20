@@ -2,11 +2,11 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"strings"
 
 	"github.com/rnemeth90/yahba/internal/config"
+	"github.com/rnemeth90/yahba/internal/logger"
 	"github.com/rnemeth90/yahba/internal/stressor"
 	"github.com/rnemeth90/yahba/internal/util"
 	"github.com/spf13/pflag"
@@ -28,7 +28,7 @@ func init() {
 	pflag.BoolVarP(&c.KeepAlive, "keep-alive", "k", false, "use keep-alives")
 	pflag.StringVarP(&c.Cookies, "cookies", "C", "", "set cookies")
 	pflag.BoolVar(&c.HTTP2, "http2", true, "use HTTP/2")
-	pflag.BoolVarP(&c.Verbose, "verbose", "v", false, "enable verbose mode")
+	pflag.StringVarP(&c.LogLevel, "log-level", "l", "info", "logging level. debug, info, warn, error")
 	pflag.StringVarP(&c.OutputFormat, "output", "o", "json", "output format (json/yaml/raw)")
 	pflag.BoolVar(&c.Compression, "compression", false, "use compression")
 	pflag.StringVar(&c.ProxyUser, "proxy-user", "", "proxy user name")
@@ -38,7 +38,8 @@ func init() {
 }
 
 func main() {
-	log.Println("parsing flags")
+	l := logger.NewLogger("debug", "stdout")
+	l.Debug("parsing flags")
 	pflag.Parse()
 
 	if err := run(c); err != nil {

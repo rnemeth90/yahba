@@ -90,10 +90,8 @@ func (l *Logger) SetOutputDestination(destination string) error {
 
 	switch dest {
 	case "stdout":
-		// Initialize the logger with stdout output
 		l.Logger = log.New(os.Stdout, "", log.LstdFlags)
 	case "stderr":
-		// Initialize the logger with stderr output
 		l.Logger = log.New(os.Stderr, "", log.LstdFlags)
 	case "file":
 		dateTimeString := time.Now().Format("2006-01-02-15-04-05")

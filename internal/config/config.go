@@ -1,7 +1,9 @@
 package config
 
 import (
+	"net/url"
 	"slices"
+	"strings"
 
 	"github.com/rnemeth90/yahba/internal/util"
 )
@@ -12,7 +14,7 @@ type Config struct {
 	Requests      int
 	Method        string
 	Headers       string
-	Body       string
+	Body          string
 	Timeout       int
 	RPS           int
 	Insecure      bool
@@ -21,7 +23,7 @@ type Config struct {
 	Cookies       string
 	HTTP2         bool
 	HTTP3         bool
-	Verbose       bool
+	LogLevel      string
 	OutputFormat  string
 	Compression   bool
 	Proxy         string
@@ -38,6 +40,19 @@ var validHTTPMethods = []string{"GET", "HEAD", "PUT", "POST"}
 func (config *Config) Validate() error {
 	if config.Host == "" {
 		return ErrMissingHost
+	}
+
+	if !strings.HasPrefix(config.Host, "http") {
+		return ErrInvalidProtocolScheme
+	}
+
+	u, err := url.Parse(config.Host)
+	if err != nil {
+		return ErrInvalidHost
+	}
+
+	if u.Scheme == "https" && config.Insecure {
+		return ErrInvalidProtocolScheme
 	}
 
 	if config.Method != "GET" && config.Method != "POST" && config.Method != "PUT" && config.Method != "DELETE" {
