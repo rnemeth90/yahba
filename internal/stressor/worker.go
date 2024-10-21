@@ -57,6 +57,9 @@ func (w *Worker) work(wg *sync.WaitGroup) {
 			req.Header.Add(h.Key, h.Value)
 		}
 
+		cookie := http.Cookie{}
+		req.AddCookie(&cookie)
+
 		log.Println("headers:", req.Header)
 
 		resp, err := w.Client.Do(req)
