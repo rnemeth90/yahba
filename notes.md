@@ -16,8 +16,7 @@ headers
 resolvers
 body
 log package
+http1.1
 
-cookies
-http2
 verbose (logging package)
 output

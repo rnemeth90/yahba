@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/rnemeth90/yahba/internal/config"
-	"golang.org/x/net/http2"
 )
 
 // Create the HTTP Client
@@ -71,10 +70,6 @@ func NewClient(cfg config.Config) (*http.Client, error) {
 
 	if proxyURL != nil {
 		t.Proxy = http.ProxyURL(proxyURL)
-	}
-
-	if cfg.HTTP2 {
-		http2.ConfigureTransport(t)
 	}
 
 	client := &http.Client{

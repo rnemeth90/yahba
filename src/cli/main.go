@@ -26,7 +26,6 @@ func init() {
 	pflag.StringVar(&c.Resolver, "resolver", "", "custom DNS resolver")
 	pflag.StringVarP(&c.Proxy, "proxy", "P", "", "proxy server address")
 	pflag.BoolVarP(&c.KeepAlive, "keep-alive", "k", false, "use keep-alives")
-	pflag.StringVarP(&c.Cookies, "cookies", "C", "", "set cookies")
 	pflag.BoolVar(&c.HTTP2, "http2", true, "use HTTP/2")
 	pflag.StringVarP(&c.LogLevel, "log-level", "l", "info", "logging level. debug, info, warn, error")
 	pflag.StringVarP(&c.OutputFormat, "output", "o", "json", "output format (json/yaml/raw)")

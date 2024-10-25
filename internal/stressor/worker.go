@@ -9,6 +9,7 @@ import (
 
 	"github.com/rnemeth90/yahba/internal/client"
 	"github.com/rnemeth90/yahba/internal/config"
+	"github.com/rnemeth90/yahba/internal/report"
 )
 
 type Worker struct {
@@ -26,9 +27,10 @@ type Job struct {
 }
 
 type Result struct {
-	ResultCode int
-	WorkerID   int
-	Error      error
+	ResultCode  int
+	WorkerID    int
+	Error       error
+	ElapsedTime time.Duration
 }
 
 func newWorker(id int, jobs <-chan Job, results chan<- Result, client *http.Client, cfg config.Config) *Worker {
@@ -56,19 +58,21 @@ func (w *Worker) work(wg *sync.WaitGroup) {
 		for _, h := range w.Config.ParsedHeaders {
 			req.Header.Add(h.Key, h.Value)
 		}
-
-		cookie := http.Cookie{}
-		req.AddCookie(&cookie)
-
 		log.Println("headers:", req.Header)
 
+		if !w.Config.HTTP2 {
+			req.Proto = "HTTP/1.1"
+		}
+
+		start := time.Now()
 		resp, err := w.Client.Do(req)
 		if err != nil {
 			w.Results <- Result{WorkerID: w.ID, Error: err}
 			continue
 		}
+		stop := time.Since(start)
 
-		w.Results <- Result{ResultCode: resp.StatusCode, WorkerID: w.ID, Error: nil}
+		w.Results <- Result{ResultCode: resp.StatusCode, WorkerID: w.ID, Error: nil, ElapsedTime: stop}
 		resp.Body.Close()
 	}
 }
@@ -107,12 +111,19 @@ func WorkerPool(cfg config.Config, jobs []Job) {
 	wg.Wait()
 	close(resultChan)
 
+	var reports []report.Report
+	// var totalSent, totalReceived int
+	// var totalSuccess, totalFailure int
+	// var statusCodeCounts = make(map[int]int)
+
 	log.Println("parsing results...")
 	for result := range resultChan {
+		report := report.Report{}
 		if result.Error != nil {
 			log.Printf("worker %d: error processing job: %v", result.WorkerID, result.Error)
 		} else {
 			log.Printf("worker %d: got %d from %s", result.WorkerID, result.ResultCode, cfg.Host)
 		}
+		reports = append(reports, report)
 	}
 }

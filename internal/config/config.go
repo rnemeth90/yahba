@@ -20,7 +20,6 @@ type Config struct {
 	Insecure      bool
 	Resolver      string
 	KeepAlive     bool
-	Cookies       string
 	HTTP2         bool
 	HTTP3         bool
 	LogLevel      string
