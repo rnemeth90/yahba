@@ -3,25 +3,29 @@ package report
 import "time"
 
 type Report struct {
-	Result         Result         `json:"report"`
+	Results        []Result       `json:"reports"`
 	ErrorBreakdown ErrorBreakdown `json:"error_breakdown"`
 	Latency        Latency        `json:"latency"`
 	Throughput     Throughput     `json:"throughput"`
 	StatusCodes    StatusCodes    `json:"status_codes"`
+	TotalRequests  int            `json:"total_requests"`
+	Concurrency    int            `json:"concurrency"`
+	Rps            int            `json:"rps"`
+	Successes      int            `json:"success"`
+	Failures       int            `json:"failures"`
 }
 
 type Result struct {
-	StartTime      time.Time `json:"start_time"`
-	EndTime        time.Time `json:"end_time"`
-	TargetURL      string    `json:"target_url"`
-	Method         string    `json:"method"`
-	TotalRequests  int       `json:"total_requests"`
-	Concurrency    int       `json:"concurrency"`
-	Rps            int       `json:"rps"`
-	Success        int       `json:"success"`
-	Failures       int       `json:"failures"`
-	DNSTime        string    `json:"dns_time"`
-	ConnectionTime string    `json:"connection_time"`
+	StartTime   time.Time     `json:"start_time"`
+	EndTime     time.Time     `json:"end_time"`
+	ElapsedTime time.Duration `json:"elapsed_time"`
+	WorkerID    int           `json:"worker_id"`
+	ResultCode  int           `json:"result_code"`
+	Error       error         `json:"error"`
+	TargetURL   string        `json:"target_url"`
+	Method      string        `json:"method"`
+	// DNSTime        string        `json:"dns_time"`
+	// ConnectionTime string        `json:"connection_time"`
 }
 
 type ErrorBreakdown struct {
@@ -55,5 +59,3 @@ type StatusCodes struct {
 	Num503 int `json:"503"`
 	Num504 int `json:"504"`
 }
-
-

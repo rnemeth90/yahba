@@ -7,6 +7,7 @@ import (
 
 	"github.com/rnemeth90/yahba/internal/config"
 	"github.com/rnemeth90/yahba/internal/logger"
+	"github.com/rnemeth90/yahba/internal/report"
 	"github.com/rnemeth90/yahba/internal/stressor"
 	"github.com/rnemeth90/yahba/internal/util"
 	"github.com/spf13/pflag"
@@ -84,7 +85,9 @@ func run(c config.Config) error {
 		}
 	}
 
-	stressor.WorkerPool(c, jobs)
+	reportChan := make(chan report.Report, 1)
+
+	stressor.WorkerPool(c, jobs, reportChan)
 
 	return nil
 }

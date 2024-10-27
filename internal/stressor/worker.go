@@ -15,7 +15,7 @@ import (
 type Worker struct {
 	ID      int
 	Jobs    <-chan Job
-	Results chan<- Result
+	Results chan<- report.Result
 	Client  *http.Client
 	Config  config.Config
 }
@@ -26,14 +26,7 @@ type Job struct {
 	Body   string
 }
 
-type Result struct {
-	ResultCode  int
-	WorkerID    int
-	Error       error
-	ElapsedTime time.Duration
-}
-
-func newWorker(id int, jobs <-chan Job, results chan<- Result, client *http.Client, cfg config.Config) *Worker {
+func newWorker(id int, jobs <-chan Job, results chan<- report.Result, client *http.Client, cfg config.Config) *Worker {
 	return &Worker{
 		ID:      id,
 		Jobs:    jobs,
@@ -51,7 +44,7 @@ func (w *Worker) work(wg *sync.WaitGroup) {
 
 		req, err := http.NewRequest(job.Method, job.Host, bytes.NewReader([]byte(job.Body)))
 		if err != nil {
-			w.Results <- Result{WorkerID: w.ID, Error: err}
+			w.Results <- report.Result{WorkerID: w.ID, Error: err}
 			continue
 		}
 
@@ -67,24 +60,34 @@ func (w *Worker) work(wg *sync.WaitGroup) {
 		start := time.Now()
 		resp, err := w.Client.Do(req)
 		if err != nil {
-			w.Results <- Result{WorkerID: w.ID, Error: err}
+			w.Results <- report.Result{WorkerID: w.ID, Error: err}
 			continue
 		}
-		stop := time.Since(start)
+		end := time.Now()
+		total := time.Since(start)
 
-		w.Results <- Result{ResultCode: resp.StatusCode, WorkerID: w.ID, Error: nil, ElapsedTime: stop}
+		w.Results <- report.Result{
+			StartTime:   start,
+			EndTime:     end,
+			ElapsedTime: total,
+			WorkerID:    w.ID,
+			ResultCode:  resp.StatusCode,
+			Error:       nil,
+			TargetURL:   job.Host,
+			Method:      job.Method,
+		}
 		resp.Body.Close()
 	}
 }
 
-func WorkerPool(cfg config.Config, jobs []Job) {
+func WorkerPool(cfg config.Config, jobs []Job, reportChan chan<- report.Report) {
 	client, err := client.NewClient(cfg)
 	if err != nil {
 		log.Fatalf("Error creating HTTP client: %v", err)
 	}
 
 	jobChan := make(chan Job, len(jobs))
-	resultChan := make(chan Result, len(jobs))
+	resultChan := make(chan report.Result, len(jobs))
 	wg := &sync.WaitGroup{}
 
 	for i := 0; i < cfg.RPS; i++ {
@@ -111,19 +114,16 @@ func WorkerPool(cfg config.Config, jobs []Job) {
 	wg.Wait()
 	close(resultChan)
 
-	var reports []report.Report
+	results := []report.Result{}
+	report := report.Report{}
 	// var totalSent, totalReceived int
 	// var totalSuccess, totalFailure int
 	// var statusCodeCounts = make(map[int]int)
 
 	log.Println("parsing results...")
 	for result := range resultChan {
-		report := report.Report{}
-		if result.Error != nil {
-			log.Printf("worker %d: error processing job: %v", result.WorkerID, result.Error)
-		} else {
-			log.Printf("worker %d: got %d from %s", result.WorkerID, result.ResultCode, cfg.Host)
-		}
-		reports = append(reports, report)
+		report.Results = append(results, result)
 	}
+
+	reportChan <- report
 }
