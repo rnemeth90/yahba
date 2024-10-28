@@ -86,8 +86,7 @@ func run(c config.Config) error {
 	}
 
 	reportChan := make(chan report.Report, 1)
-
 	stressor.WorkerPool(c, jobs, reportChan)
-
+	report.PrintRaw(reportChan)
 	return nil
 }

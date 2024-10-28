@@ -126,4 +126,5 @@ func WorkerPool(cfg config.Config, jobs []Job, reportChan chan<- report.Report) 
 	}
 
 	reportChan <- report
+	close(reportChan)
 }
