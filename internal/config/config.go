@@ -10,13 +10,12 @@ import (
 
 type Config struct {
 	Host          string
-	Concurrency   int
-	Requests      int
 	Method        string
 	Headers       string
 	Body          string
 	Timeout       int
 	RPS           int
+	Requests      int
 	Insecure      bool
 	Resolver      string
 	KeepAlive     bool

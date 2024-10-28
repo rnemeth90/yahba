@@ -114,7 +114,6 @@ func WorkerPool(cfg config.Config, jobs []Job, reportChan chan<- report.Report) 
 	wg.Wait()
 	close(resultChan)
 
-	results := []report.Result{}
 	report := report.Report{}
 	// var totalSent, totalReceived int
 	// var totalSuccess, totalFailure int
@@ -122,7 +121,7 @@ func WorkerPool(cfg config.Config, jobs []Job, reportChan chan<- report.Report) 
 
 	log.Println("parsing results...")
 	for result := range resultChan {
-		report.Results = append(results, result)
+		report.Results = append(report.Results, result)
 	}
 
 	reportChan <- report

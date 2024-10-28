@@ -87,6 +87,11 @@ func run(c config.Config) error {
 
 	reportChan := make(chan report.Report, 1)
 	stressor.WorkerPool(c, jobs, reportChan)
-	report.PrintRaw(reportChan)
+	// report.ParseRaw(reportChan)
+	jsonReport, err := report.ParseJSON(reportChan)
+	if err != nil {
+		fmt.Printf("error parsing json: %v\n", err)
+	}
+	fmt.Println(jsonReport)
 	return nil
 }
