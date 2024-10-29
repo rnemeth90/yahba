@@ -2,7 +2,6 @@ package config
 
 import (
 	"net/url"
-	"slices"
 	"strings"
 
 	"github.com/rnemeth90/yahba/internal/util"
@@ -22,7 +21,9 @@ type Config struct {
 	HTTP2         bool
 	HTTP3         bool
 	LogLevel      string
-	OutputFormat  string
+	JSONOutput    bool
+	YAMLOutput    bool
+	RawOutput     bool
 	Compression   bool
 	Proxy         string
 	ProxyUser     string
@@ -32,7 +33,6 @@ type Config struct {
 	SkipDNS       bool
 }
 
-var validOutputFormats = []string{"json", "yaml", "raw"}
 var validHTTPMethods = []string{"GET", "HEAD", "PUT", "POST"}
 
 func (config *Config) Validate() error {
@@ -42,6 +42,10 @@ func (config *Config) Validate() error {
 
 	if !strings.HasPrefix(config.Host, "http") {
 		return ErrInvalidProtocolScheme
+	}
+
+	if config.RawOutput && config.YAMLOutput && config.JSONOutput {
+		return ErrInvalidOutputFormat
 	}
 
 	u, err := url.Parse(config.Host)
@@ -73,10 +77,6 @@ func (config *Config) Validate() error {
 
 	if config.HTTP2 && config.HTTP3 {
 		return ErrInvalidHTTPConfig
-	}
-
-	if !slices.Contains(validOutputFormats, config.OutputFormat) {
-		return ErrInvalidOutputFormat
 	}
 
 	return nil

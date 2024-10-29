@@ -29,18 +29,23 @@ func init() {
 	pflag.BoolVarP(&c.KeepAlive, "keep-alive", "k", false, "use keep-alives")
 	pflag.BoolVar(&c.HTTP2, "http2", true, "use HTTP/2")
 	pflag.StringVarP(&c.LogLevel, "log-level", "l", "info", "logging level. debug, info, warn, error")
-	pflag.StringVarP(&c.OutputFormat, "output", "o", "json", "output format (json/yaml/raw)")
 	pflag.BoolVar(&c.Compression, "compression", false, "use compression")
 	pflag.StringVar(&c.ProxyUser, "proxy-user", "", "proxy user name")
 	pflag.StringVar(&c.ProxyPassword, "proxy-password", "", "proxy password")
 	pflag.IntVarP(&c.Sleep, "sleep", "s", 1, "sleep seconds")
 	pflag.BoolVar(&c.SkipDNS, "skip-dns", false, "skip dns resolution")
+	pflag.BoolVar(&c.YAMLOutput, "yaml", false, "yaml output")
+	pflag.BoolVar(&c.JSONOutput, "json", false, "json output")
 }
 
 func main() {
 	l := logger.NewLogger("debug", "stdout")
 	l.Debug("parsing flags")
 	pflag.Parse()
+
+	if !c.YAMLOutput && !c.JSONOutput {
+		c.RawOutput = true
+	}
 
 	if err := run(c); err != nil {
 		fmt.Fprintln(os.Stdout, err)

@@ -9,7 +9,6 @@ type Report struct {
 	Throughput     Throughput     `json:"throughput"`
 	StatusCodes    StatusCodes    `json:"status_codes"`
 	TotalRequests  int            `json:"total_requests"`
-	Concurrency    int            `json:"concurrency"`
 	Rps            int            `json:"rps"`
 	Successes      int            `json:"success"`
 	Failures       int            `json:"failures"`
