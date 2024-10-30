@@ -36,21 +36,30 @@ func init() {
 	pflag.BoolVar(&c.SkipDNS, "skip-dns", false, "skip dns resolution")
 	pflag.BoolVar(&c.YAMLOutput, "yaml", false, "yaml output")
 	pflag.BoolVar(&c.JSONOutput, "json", false, "json output")
+	pflag.StringVarP(&c.OutputFile, "out", "o", "", "file to write results to")
 }
 
 func main() {
-	l := logger.NewLogger("debug", "stdout")
+	l := logger.NewLogger(c.LogLevel, "stdout")
 	l.Debug("parsing flags")
 	pflag.Parse()
 
 	if !c.YAMLOutput && !c.JSONOutput {
 		c.RawOutput = true
+	} else if c.YAMLOutput {
+		c.YAMLOutput = true
+	} else if c.JSONOutput {
+		c.JSONOutput = true
 	}
 
 	if err := run(c); err != nil {
-		fmt.Fprintln(os.Stdout, err)
+		l.Error("error: %v\n", err)
 		os.Exit(1)
 	}
+}
+
+func testConnection() (bool, error) {
+	return false, nil
 }
 
 func run(c config.Config) error {
@@ -92,11 +101,27 @@ func run(c config.Config) error {
 
 	reportChan := make(chan report.Report, 1)
 	stressor.WorkerPool(c, jobs, reportChan)
-	// report.ParseRaw(reportChan)
-	jsonReport, err := report.ParseJSON(reportChan)
-	if err != nil {
-		fmt.Printf("error parsing json: %v\n", err)
+
+	var r string
+	var err error
+	if c.JSONOutput {
+		r, err = report.ParseJSON(reportChan)
+		if err != nil {
+			fmt.Printf("error parsing json: %v\n", err)
+		}
+	} else if c.YAMLOutput {
+		r, err = report.ParseYAML(reportChan)
+		if err != nil {
+			fmt.Printf("error parsing yaml: %v\n", err)
+		}
+	} else {
+		r, err = report.ParseRaw(reportChan)
+		if err != nil {
+			fmt.Printf("error parsing raw: %v\n", err)
+		}
 	}
-	fmt.Println(jsonReport)
+
+	// report.ParseRaw(reportChan)
+	fmt.Println(r)
 	return nil
 }

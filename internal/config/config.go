@@ -31,6 +31,7 @@ type Config struct {
 	ParsedHeaders []util.Header
 	Sleep         int
 	SkipDNS       bool
+	OutputFile    string
 }
 
 var validHTTPMethods = []string{"GET", "HEAD", "PUT", "POST"}
