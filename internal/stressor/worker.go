@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"log"
 	"net/http"
+	"net/url"
 	"sync"
 	"time"
 
@@ -57,25 +58,30 @@ func (w *Worker) work(wg *sync.WaitGroup) {
 			req.Proto = "HTTP/1.1"
 		}
 
+		result := report.Result{}
+		result.WorkerID = w.ID
+
 		start := time.Now()
+		result.StartTime = start
+
 		resp, err := w.Client.Do(req)
 		if err != nil {
-			w.Results <- report.Result{WorkerID: w.ID, Error: err}
-			continue
+			if err.(*url.Error).Timeout() {
+				result.Timeout = true
+				continue
+			}
 		}
-		end := time.Now()
-		total := time.Since(start)
 
-		w.Results <- report.Result{
-			StartTime:   start,
-			EndTime:     end,
-			ElapsedTime: total,
-			WorkerID:    w.ID,
-			ResultCode:  resp.StatusCode,
-			Error:       nil,
-			TargetURL:   job.Host,
-			Method:      job.Method,
-		}
+		end := time.Now()
+		result.EndTime = end
+
+		total := time.Since(start)
+		result.ElapsedTime = total
+		result.ResultCode = resp.StatusCode
+		result.Method = job.Method
+		result.TargetURL = job.Host
+
+		w.Results <- result
 		resp.Body.Close()
 	}
 }
@@ -122,6 +128,11 @@ func WorkerPool(cfg config.Config, jobs []Job, reportChan chan<- report.Report) 
 	log.Println("parsing results...")
 	for result := range resultChan {
 		report.Results = append(report.Results, result)
+		if result.ResultCode >= 400 && result.ResultCode <= 499 {
+			report.ErrorBreakdown.ClientErrors += 1
+		} else if result.ResultCode >= 500 && result.ResultCode <= 599 {
+			report.ErrorBreakdown.ServerErrors += 1
+		}
 	}
 
 	reportChan <- report

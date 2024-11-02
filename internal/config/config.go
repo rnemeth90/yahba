@@ -1,6 +1,7 @@
 package config
 
 import (
+	"net"
 	"net/url"
 	"strings"
 
@@ -21,8 +22,6 @@ type Config struct {
 	HTTP2         bool
 	HTTP3         bool
 	LogLevel      string
-	JSONOutput    bool
-	YAMLOutput    bool
 	RawOutput     bool
 	Compression   bool
 	Proxy         string
@@ -32,6 +31,7 @@ type Config struct {
 	Sleep         int
 	SkipDNS       bool
 	OutputFile    string
+	OutputFormat  string
 }
 
 var validHTTPMethods = []string{"GET", "HEAD", "PUT", "POST"}
@@ -43,10 +43,6 @@ func (config *Config) Validate() error {
 
 	if !strings.HasPrefix(config.Host, "http") {
 		return ErrInvalidProtocolScheme
-	}
-
-	if config.RawOutput && config.YAMLOutput && config.JSONOutput {
-		return ErrInvalidOutputFormat
 	}
 
 	u, err := url.Parse(config.Host)
@@ -74,7 +70,46 @@ func (config *Config) Validate() error {
 		return ErrInvalidTimeout
 	}
 
-	// check proxy config
+	if config.Proxy != "" {
+		if _, err := url.Parse(config.Proxy); err != nil {
+			return ErrInvalidProxy
+		}
+		if (config.ProxyUser == "" && config.ProxyPassword != "") || (config.ProxyUser != "" && config.ProxyPassword == "") {
+			return ErrInvalidProxyAuth
+		}
+	}
+
+	if config.SkipDNS && config.Resolver != "" {
+		return ErrConflictingDNSOptions
+	}
+
+	if (config.Method == "POST" || config.Method == "PUT") && config.Body == "" {
+		return ErrMissingBody
+	}
+
+	if config.Headers != "" {
+		if _, err := util.ParseHeaders(config.Headers); err != nil {
+			return ErrInvalidHeaders
+		}
+	}
+
+	if config.Resolver != "" {
+		if _, _, err := net.SplitHostPort(config.Resolver); err != nil {
+			return ErrInvalidResolvers
+		}
+	}
+
+	if config.Timeout <= 0 {
+		return ErrInvalidTimeout
+	}
+
+	if config.RPS <= 0 {
+		return ErrInvalidRPS
+	}
+
+	if config.Requests <= 0 {
+		return ErrInvalidRequests
+	}
 
 	if config.HTTP2 && config.HTTP3 {
 		return ErrInvalidHTTPConfig

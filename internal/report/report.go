@@ -9,7 +9,7 @@ type Report struct {
 	Throughput     Throughput     `json:"throughput"`
 	StatusCodes    StatusCodes    `json:"status_codes"`
 	TotalRequests  int            `json:"total_requests"`
-	Rps            int            `json:"rps"`
+	RPS            int            `json:"rps"`
 	Successes      int            `json:"success"`
 	Failures       int            `json:"failures"`
 }
@@ -23,12 +23,10 @@ type Result struct {
 	Error       error         `json:"error"`
 	TargetURL   string        `json:"target_url"`
 	Method      string        `json:"method"`
-	// DNSTime        string        `json:"dns_time"`
-	// ConnectionTime string        `json:"connection_time"`
+	Timeout     bool          `json:"timeout"`
 }
 
 type ErrorBreakdown struct {
-	Timeouts     int `json:"timeouts"`
 	ServerErrors int `json:"server_errors"`
 	ClientErrors int `json:"client_errors"`
 }

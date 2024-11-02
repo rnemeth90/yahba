@@ -4,23 +4,61 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
 
-// this is dumb. Don't do this.
-func ParseRaw(report chan Report) (string, error) {
-	result, ok := <-report
+// ParseRaw generates a raw-text summary of the report
+func ParseRaw(reportChan chan Report) (string, error) {
+	report, ok := <-reportChan
 	if !ok {
-		return "", errors.New("channel unexpectedly closed...")
+		return "", errors.New("channel unexpectedly closed")
 	}
 
-	fmt.Println("parsing report...")
-	for _, r := range result.Results {
-		fmt.Println(r.ResultCode)
+	var builder strings.Builder
+
+	builder.WriteString("YAHBA Stress Test Report\n")
+	builder.WriteString("========================\n\n")
+	builder.WriteString(fmt.Sprintf("Total Requests:      %d\n", report.TotalRequests))
+	builder.WriteString(fmt.Sprintf("Requests per Second: %d\n", report.RPS))
+	builder.WriteString(fmt.Sprintf("Successes:           %d\n", report.Successes))
+	builder.WriteString(fmt.Sprintf("Failures:            %d\n\n", report.Failures))
+
+	builder.WriteString("Latency:\n")
+	builder.WriteString(fmt.Sprintf("  Min: %s\n", report.Latency.Min))
+	builder.WriteString(fmt.Sprintf("  Max: %s\n", report.Latency.Max))
+	builder.WriteString(fmt.Sprintf("  Avg: %s\n", report.Latency.Avg))
+	builder.WriteString(fmt.Sprintf("  P50: %s\n", report.Latency.P50))
+	builder.WriteString(fmt.Sprintf("  P95: %s\n", report.Latency.P95))
+	builder.WriteString(fmt.Sprintf("  P99: %s\n\n", report.Latency.P99))
+
+	builder.WriteString("Throughput:\n")
+	builder.WriteString(fmt.Sprintf("  Total Data Sent:     %s\n", report.Throughput.TotalDataSent))
+	builder.WriteString(fmt.Sprintf("  Total Data Received: %s\n", report.Throughput.TotalDataReceived))
+	builder.WriteString(fmt.Sprintf("  Avg Data per Request: %s\n\n", report.Throughput.AvgDataPerRequest))
+
+	builder.WriteString("Status Code Breakdown:\n")
+	builder.WriteString(fmt.Sprintf("  200 OK:                 %d\n", report.StatusCodes.Num200))
+	builder.WriteString(fmt.Sprintf("  400 Bad Request:        %d\n", report.StatusCodes.Num400))
+	builder.WriteString(fmt.Sprintf("  403 Forbidden:          %d\n", report.StatusCodes.Num403))
+	builder.WriteString(fmt.Sprintf("  404 Not Found:          %d\n", report.StatusCodes.Num404))
+	builder.WriteString(fmt.Sprintf("  500 Internal Server Error: %d\n", report.StatusCodes.Num500))
+	builder.WriteString(fmt.Sprintf("  502 Bad Gateway:        %d\n", report.StatusCodes.Num502))
+	builder.WriteString(fmt.Sprintf("  503 Service Unavailable: %d\n", report.StatusCodes.Num503))
+	builder.WriteString(fmt.Sprintf("  504 Gateway Timeout:    %d\n\n", report.StatusCodes.Num504))
+
+	builder.WriteString("Error Breakdown:\n")
+	builder.WriteString(fmt.Sprintf("  Server Errors:          %d\n", report.ErrorBreakdown.ServerErrors))
+	builder.WriteString(fmt.Sprintf("  Client Errors:          %d\n", report.ErrorBreakdown.ClientErrors))
+	builder.WriteString("\n")
+
+	builder.WriteString("Individual Request Results:\n")
+	for _, r := range report.Results {
+		builder.WriteString(fmt.Sprintf("  Worker %d | Status: %d | Time: %s | URL: %s | Timeout: %t", r.WorkerID, r.ResultCode, r.ElapsedTime, r.TargetURL, r.Timeout))
 	}
 
-	return "", nil
+	return builder.String(), nil
 }
 
 func ParseJSON(report chan Report) (string, error) {

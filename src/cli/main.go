@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/rnemeth90/yahba/internal/config"
 	"github.com/rnemeth90/yahba/internal/logger"
@@ -16,27 +15,26 @@ import (
 var c config.Config
 
 func init() {
-	pflag.StringVarP(&c.Host, "host", "h", "", "specify the URL to stress test")
-	pflag.IntVarP(&c.Requests, "requests", "r", 4, "the total number of requests that should be sent")
-	pflag.StringVarP(&c.Method, "method", "m", "GET", "which HTTP method to use (GET, POST, etc.)")
-	pflag.StringVarP(&c.Headers, "headers", "H", "", "allows adding custom headers to the requests")
-	pflag.StringVarP(&c.Body, "body", "b", "", "for POST and PUT requests, users can define the request body")
-	pflag.IntVarP(&c.Timeout, "timeout", "t", 10, "the timeout for each request in seconds")
-	pflag.IntVar(&c.RPS, "rps", 1, "requests per second")
-	pflag.BoolVarP(&c.Insecure, "insecure", "i", false, "disable SSL/TLS certificate verification")
-	pflag.StringVar(&c.Resolver, "resolver", "", "custom DNS resolver")
-	pflag.StringVarP(&c.Proxy, "proxy", "P", "", "proxy server address")
-	pflag.BoolVarP(&c.KeepAlive, "keep-alive", "k", false, "use keep-alives")
-	pflag.BoolVar(&c.HTTP2, "http2", true, "use HTTP/2")
-	pflag.StringVarP(&c.LogLevel, "log-level", "l", "info", "logging level. debug, info, warn, error")
-	pflag.BoolVar(&c.Compression, "compression", false, "use compression")
-	pflag.StringVar(&c.ProxyUser, "proxy-user", "", "proxy user name")
-	pflag.StringVar(&c.ProxyPassword, "proxy-password", "", "proxy password")
-	pflag.IntVarP(&c.Sleep, "sleep", "s", 1, "sleep seconds")
-	pflag.BoolVar(&c.SkipDNS, "skip-dns", false, "skip dns resolution")
-	pflag.BoolVar(&c.YAMLOutput, "yaml", false, "yaml output")
-	pflag.BoolVar(&c.JSONOutput, "json", false, "json output")
-	pflag.StringVarP(&c.OutputFile, "out", "o", "", "file to write results to")
+	pflag.StringVarP(&c.Host, "host", "h", "", "The target URL to stress test. This should include the protocol (e.g., http:// or https://)")
+	pflag.IntVarP(&c.Requests, "requests", "r", 4, "The total number of requests to send during the test")
+	pflag.StringVarP(&c.Method, "method", "m", "GET", "The HTTP method to use for each request (e.g., GET, POST, PUT)")
+	pflag.StringVarP(&c.Headers, "headers", "H", "", "Custom headers to add to each request, formatted as 'Key1:Value1,Key2:Value2'")
+	pflag.StringVarP(&c.Body, "body", "b", "", "The request body to include with POST and PUT methods")
+	pflag.IntVarP(&c.Timeout, "timeout", "t", 10, "The timeout in seconds for each request, after which it will be considered failed")
+	pflag.IntVar(&c.RPS, "rps", 1, "The number of requests per second (RPS) to send during the test")
+	pflag.BoolVarP(&c.Insecure, "insecure", "i", false, "If set, disables SSL/TLS certificate verification for HTTPS requests")
+	pflag.StringVar(&c.Resolver, "resolver", "", "A custom DNS resolver to use, specified as 'IP:Port'")
+	pflag.StringVarP(&c.Proxy, "proxy", "P", "", "The proxy server to route requests through, specified as 'IP:Port'")
+	pflag.BoolVarP(&c.KeepAlive, "keep-alive", "k", false, "Enable HTTP keep-alive, allowing TCP connections to remain open for multiple requests")
+	pflag.BoolVar(&c.HTTP2, "http2", true, "Enable HTTP/2 support for requests (default: true)")
+	pflag.StringVarP(&c.LogLevel, "log-level", "l", "info", "The logging level to use (options: debug, info, warn, error)")
+	pflag.BoolVar(&c.Compression, "compression", false, "Enable HTTP compression for requests (e.g., gzip)")
+	pflag.StringVar(&c.ProxyUser, "proxy-user", "", "Username for proxy authentication")
+	pflag.StringVar(&c.ProxyPassword, "proxy-password", "", "Password for proxy authentication")
+	pflag.IntVarP(&c.Sleep, "sleep", "s", 1, "Sleep time in seconds between requests in a single worker (throttles requests)")
+	pflag.BoolVar(&c.SkipDNS, "skip-dns", false, "If set, skips DNS resolution and uses a direct IP address")
+	pflag.StringVar(&c.OutputFormat, "output-format", "raw", "Output format: json, yaml, or raw")
+	pflag.StringVar(&c.OutputFile, "out", "stdout", "File path to write results to; defaults to stdout")
 }
 
 func main() {
@@ -44,84 +42,53 @@ func main() {
 	l.Debug("parsing flags")
 	pflag.Parse()
 
-	if !c.YAMLOutput && !c.JSONOutput {
-		c.RawOutput = true
-	} else if c.YAMLOutput {
-		c.YAMLOutput = true
-	} else if c.JSONOutput {
-		c.JSONOutput = true
-	}
-
-	if err := run(c); err != nil {
+	if err := run(c, l); err != nil {
 		l.Error("error: %v\n", err)
 		os.Exit(1)
 	}
 }
 
-func testConnection() (bool, error) {
-	return false, nil
-}
-
-func run(c config.Config) error {
+func run(c config.Config, l *logger.Logger) error {
 	if err := c.Validate(); err != nil {
 		return err
 	}
 
-	// Parse headers here, so we only parse them once
-	heads := []util.Header{}
+	// Parse headers once
 	if c.Headers != "" {
-		if strings.Contains(c.Headers, ",") {
-			headers, err := util.ParseHeaders(c.Headers)
-			if err != nil {
-				return err
-			}
-
-			for _, h := range headers {
-				heads = append(heads, h)
-			}
-		} else {
-			header, err := util.ParseHeader(c.Headers)
-			if err != nil {
-				return err
-			}
-
-			heads = append(heads, header)
+		parsedHeaders, err := util.ParseHeaders(c.Headers)
+		if err != nil {
+			return fmt.Errorf("error parsing headers: %w", err)
 		}
+		c.ParsedHeaders = parsedHeaders
 	}
-	c.ParsedHeaders = heads
 
+	// Create jobs based on the number of requests
 	jobs := make([]stressor.Job, c.Requests)
 	for i := 0; i < c.Requests; i++ {
-		jobs[i] = stressor.Job{
-			Host:   c.Host,
-			Method: c.Method,
-			Body:   c.Body,
-		}
+		jobs[i] = stressor.Job{Host: c.Host, Method: c.Method, Body: c.Body}
 	}
 
-	reportChan := make(chan report.Report, 1)
-	stressor.WorkerPool(c, jobs, reportChan)
+	reportChan := make(chan report.Report, c.Requests)
+	go func() {
+		stressor.WorkerPool(c, jobs, reportChan)
+	}()
 
-	var r string
+	// Generate report based on output format
+	var reportOutput string
 	var err error
-	if c.JSONOutput {
-		r, err = report.ParseJSON(reportChan)
-		if err != nil {
-			fmt.Printf("error parsing json: %v\n", err)
-		}
-	} else if c.YAMLOutput {
-		r, err = report.ParseYAML(reportChan)
-		if err != nil {
-			fmt.Printf("error parsing yaml: %v\n", err)
-		}
-	} else {
-		r, err = report.ParseRaw(reportChan)
-		if err != nil {
-			fmt.Printf("error parsing raw: %v\n", err)
-		}
+	switch c.OutputFormat {
+	case "json":
+		reportOutput, err = report.ParseJSON(reportChan)
+	case "yaml":
+		reportOutput, err = report.ParseYAML(reportChan)
+	default:
+		reportOutput, err = report.ParseRaw(reportChan)
+	}
+	if err != nil {
+		l.Error("error generating report: %v", err)
+		return err
 	}
 
-	// report.ParseRaw(reportChan)
-	fmt.Println(r)
+	fmt.Println(reportOutput)
 	return nil
 }
