@@ -90,3 +90,4 @@ func ParseYAML(report chan Report) (string, error) {
 
 	return string(yamlStr), nil
 }
+

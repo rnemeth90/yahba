@@ -121,12 +121,14 @@ func WorkerPool(cfg config.Config, jobs []Job, reportChan chan<- report.Report) 
 	close(resultChan)
 
 	report := report.Report{}
+	var totalRequests int
 	// var totalSent, totalReceived int
 	// var totalSuccess, totalFailure int
 	// var statusCodeCounts = make(map[int]int)
 
 	log.Println("parsing results...")
 	for result := range resultChan {
+		totalRequests++
 		report.Results = append(report.Results, result)
 		if result.ResultCode >= 400 && result.ResultCode <= 499 {
 			report.ErrorBreakdown.ClientErrors += 1
@@ -134,6 +136,9 @@ func WorkerPool(cfg config.Config, jobs []Job, reportChan chan<- report.Report) 
 			report.ErrorBreakdown.ServerErrors += 1
 		}
 	}
+
+	report.TotalRequests = totalRequests
+	report.CalculateLatencyMetrics()
 
 	reportChan <- report
 	close(reportChan)

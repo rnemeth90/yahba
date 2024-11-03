@@ -1,6 +1,10 @@
 package report
 
-import "time"
+import (
+	"fmt"
+	"sort"
+	"time"
+)
 
 type Report struct {
 	Results        []Result       `json:"reports"`
@@ -55,4 +59,43 @@ type StatusCodes struct {
 	Num502 int `json:"502"`
 	Num503 int `json:"503"`
 	Num504 int `json:"504"`
+}
+
+func (r *Report) CalculateLatencyMetrics() {
+	if r.TotalRequests == 0 {
+		r.Latency = Latency{}
+		return
+	}
+
+	var latencies []time.Duration
+	var totalLatency time.Duration
+	for _, result := range r.Results {
+		latencies = append(latencies, result.ElapsedTime)
+		totalLatency += result.ElapsedTime
+	}
+
+	sort.Slice(latencies, func(i, j int) bool {
+		return latencies[i] < latencies[j]
+	})
+
+	minLatency := latencies[0]
+	maxLatency := latencies[len(latencies)-1]
+	avgLatency := totalLatency / time.Duration(len(latencies))
+	p50 := latencies[len(latencies)*50/100]
+	p95 := latencies[len(latencies)*95/100]
+	p99 := latencies[len(latencies)*99/100]
+
+	r.Latency = Latency{
+		Min: formatDuration(minLatency),
+		Max: formatDuration(maxLatency),
+		Avg: formatDuration(avgLatency),
+		P50: formatDuration(p50),
+		P95: formatDuration(p95),
+		P99: formatDuration(p99),
+	}
+}
+
+// Format duration into a readable string
+func formatDuration(d time.Duration) string {
+	return fmt.Sprintf("%v", d)
 }
