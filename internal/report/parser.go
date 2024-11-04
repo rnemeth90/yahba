@@ -34,9 +34,8 @@ func ParseRaw(reportChan chan Report) (string, error) {
 	builder.WriteString(fmt.Sprintf("  P99: %s\n\n", report.Latency.P99))
 
 	builder.WriteString("Throughput:\n")
-	builder.WriteString(fmt.Sprintf("  Total Data Sent:     %s\n", report.Throughput.TotalDataSent))
-	builder.WriteString(fmt.Sprintf("  Total Data Received: %s\n", report.Throughput.TotalDataReceived))
-	builder.WriteString(fmt.Sprintf("  Avg Data per Request: %s\n\n", report.Throughput.AvgDataPerRequest))
+	builder.WriteString(fmt.Sprintf("  Total Bytes Sent:     %d\n", report.Throughput.TotalBytesSent))
+	builder.WriteString(fmt.Sprintf("  Total Bytes Received: %d\n", report.Throughput.TotalBytesReceived))
 
 	builder.WriteString("Status Code Breakdown:\n")
 	builder.WriteString(fmt.Sprintf("  200 OK:                 %d\n", report.StatusCodes.Num200))
@@ -90,4 +89,3 @@ func ParseYAML(report chan Report) (string, error) {
 
 	return string(yamlStr), nil
 }
-

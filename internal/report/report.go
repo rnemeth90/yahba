@@ -19,15 +19,17 @@ type Report struct {
 }
 
 type Result struct {
-	StartTime   time.Time     `json:"start_time"`
-	EndTime     time.Time     `json:"end_time"`
-	ElapsedTime time.Duration `json:"elapsed_time"`
-	WorkerID    int           `json:"worker_id"`
-	ResultCode  int           `json:"result_code"`
-	Error       error         `json:"error"`
-	TargetURL   string        `json:"target_url"`
-	Method      string        `json:"method"`
-	Timeout     bool          `json:"timeout"`
+	StartTime     time.Time     `json:"start_time"`
+	EndTime       time.Time     `json:"end_time"`
+	ElapsedTime   time.Duration `json:"elapsed_time"`
+	WorkerID      int           `json:"worker_id"`
+	ResultCode    int           `json:"result_code"`
+	Error         error         `json:"error"`
+	TargetURL     string        `json:"target_url"`
+	Method        string        `json:"method"`
+	Timeout       bool          `json:"timeout"`
+	BytesSent     int           `json:"bytes_sent"`
+	BytesReceived int           `json:"bytes_received"`
 }
 
 type ErrorBreakdown struct {
@@ -45,9 +47,8 @@ type Latency struct {
 }
 
 type Throughput struct {
-	TotalDataSent     string `json:"total_data_sent"`
-	TotalDataReceived string `json:"total_data_received"`
-	AvgDataPerRequest string `json:"avg_data_per_request"`
+	TotalBytesSent     int `json:"total_bytes_sent"`
+	TotalBytesReceived int `json:"total_bytes_received"`
 }
 
 type StatusCodes struct {

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"log"
 	"net/http"
+	"net/http/httputil"
 	"net/url"
 	"sync"
 	"time"
@@ -64,6 +65,15 @@ func (w *Worker) work(wg *sync.WaitGroup) {
 		start := time.Now()
 		result.StartTime = start
 
+		// create a copy of the original request, since DumpRequest may modify the request
+		requestCopy := req
+		bytesSent, err := httputil.DumpRequest(requestCopy, true)
+		if err != nil {
+			w.Results <- report.Result{WorkerID: w.ID, Error: err}
+			continue
+		}
+		result.BytesSent = len(bytesSent)
+
 		resp, err := w.Client.Do(req)
 		if err != nil {
 			if err.(*url.Error).Timeout() {
@@ -71,6 +81,14 @@ func (w *Worker) work(wg *sync.WaitGroup) {
 				continue
 			}
 		}
+
+		responseCopy := resp
+		bytesReceived, err := httputil.DumpResponse(responseCopy, true)
+		if err != nil {
+			w.Results <- report.Result{WorkerID: w.ID, Error: err}
+			continue
+		}
+		result.BytesReceived = len(bytesReceived)
 
 		end := time.Now()
 		result.EndTime = end
@@ -122,13 +140,14 @@ func WorkerPool(cfg config.Config, jobs []Job, reportChan chan<- report.Report) 
 
 	report := report.Report{}
 	var totalRequests int
-	// var totalSent, totalReceived int
-	// var totalSuccess, totalFailure int
-	// var statusCodeCounts = make(map[int]int)
+	var totalBytesSent int
+	var totalBytesReceived int
 
 	log.Println("parsing results...")
 	for result := range resultChan {
 		totalRequests++
+		totalBytesSent += result.BytesSent
+		totalBytesReceived += result.BytesReceived
 		report.Results = append(report.Results, result)
 		if result.ResultCode >= 400 && result.ResultCode <= 499 {
 			report.ErrorBreakdown.ClientErrors += 1
@@ -138,6 +157,9 @@ func WorkerPool(cfg config.Config, jobs []Job, reportChan chan<- report.Report) 
 	}
 
 	report.TotalRequests = totalRequests
+	report.Throughput.TotalBytesSent = totalBytesSent
+	report.Throughput.TotalBytesReceived = totalBytesReceived
+
 	report.CalculateLatencyMetrics()
 
 	reportChan <- report
