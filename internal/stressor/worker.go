@@ -142,9 +142,11 @@ func WorkerPool(cfg config.Config, jobs []Job, reportChan chan<- report.Report) 
 	var totalRequests int
 	var totalBytesSent int
 	var totalBytesReceived int
+	resultCodes := make(map[int]int)
 
 	log.Println("parsing results...")
 	for result := range resultChan {
+		resultCodes[result.ResultCode]++
 		totalRequests++
 		totalBytesSent += result.BytesSent
 		totalBytesReceived += result.BytesReceived
@@ -154,12 +156,19 @@ func WorkerPool(cfg config.Config, jobs []Job, reportChan chan<- report.Report) 
 		} else if result.ResultCode >= 500 && result.ResultCode <= 599 {
 			report.ErrorBreakdown.ServerErrors += 1
 		}
+
+		if result.ResultCode >= 400 {
+			report.Failures++
+		} else {
+			report.Successes++
+		}
 	}
 
 	report.TotalRequests = totalRequests
 	report.Throughput.TotalBytesSent = totalBytesSent
 	report.Throughput.TotalBytesReceived = totalBytesReceived
 
+	report.ConvertResultCodes(resultCodes)
 	report.CalculateLatencyMetrics()
 
 	reportChan <- report

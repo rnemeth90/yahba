@@ -13,7 +13,6 @@ type Report struct {
 	Throughput     Throughput     `json:"throughput"`
 	StatusCodes    StatusCodes    `json:"status_codes"`
 	TotalRequests  int            `json:"total_requests"`
-	RPS            int            `json:"rps"`
 	Successes      int            `json:"success"`
 	Failures       int            `json:"failures"`
 }
@@ -53,6 +52,8 @@ type Throughput struct {
 
 type StatusCodes struct {
 	Num200 int `json:"200"`
+	Num201 int `json:"201"`
+	Num204 int `json:"204"`
 	Num400 int `json:"400"`
 	Num403 int `json:"403"`
 	Num404 int `json:"404"`
@@ -99,4 +100,35 @@ func (r *Report) CalculateLatencyMetrics() {
 // Format duration into a readable string
 func formatDuration(d time.Duration) string {
 	return fmt.Sprintf("%v", d)
+}
+
+func (r *Report) ConvertResultCodes(m map[int]int) {
+	statusCodes := StatusCodes{}
+
+	for resultCode, count := range m {
+		switch resultCode {
+		case 200:
+			statusCodes.Num200 = count
+		case 201:
+			statusCodes.Num201 = count
+		case 204:
+			statusCodes.Num204 = count
+		case 400:
+			statusCodes.Num400 = count
+		case 403:
+			statusCodes.Num403 = count
+		case 404:
+			statusCodes.Num404 = count
+		case 500:
+			statusCodes.Num500 = count
+		case 502:
+			statusCodes.Num502 = count
+		case 503:
+			statusCodes.Num503 = count
+		case 504:
+			statusCodes.Num504 = count
+		}
+	}
+
+	r.StatusCodes = statusCodes
 }
