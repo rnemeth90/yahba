@@ -20,7 +20,7 @@ func TestNewClient(t *testing.T) {
 	}
 }
 
-func TestSendRequest(t *testing.T) {
+func TestGETRequest(t *testing.T) {
 	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 	}))
 	defer testServer.Close()
@@ -28,7 +28,10 @@ func TestSendRequest(t *testing.T) {
 	req := httptest.NewRequest("GET", testServer.URL, nil)
 	req.RequestURI = ""
 
-	cfg := config.Config{}
+	cfg := config.Config{
+		Host:   testServer.URL,
+		Method: http.MethodGet,
+	}
 	client, err := NewClient(cfg)
 	if err != nil {
 		t.Fatal(err)
@@ -45,5 +48,22 @@ func TestSendRequest(t *testing.T) {
 	if response.StatusCode != http.StatusOK {
 		t.Fatalf("expected 200, got %d", response.StatusCode)
 	}
-
 }
+
+func TestCustomResolver(t *testing.T) {
+	cfg := config.Config{
+		Resolver: "8.8.8.8:53",
+	}
+
+	client, err := NewClient(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = client.Get("http://www.example.com")
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+
