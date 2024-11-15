@@ -18,6 +18,8 @@ func ParseRaw(reportChan chan Report) (string, error) {
 
 	var builder strings.Builder
 
+	builder.WriteString("\n")
+	builder.WriteString("\n")
 	builder.WriteString("YAHBA Stress Test Report\n")
 	builder.WriteString("========================\n\n")
 	builder.WriteString(fmt.Sprintf("Total Requests:      %d\n", report.TotalRequests))

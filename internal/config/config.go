@@ -5,6 +5,7 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/rnemeth90/yahba/internal/logger"
 	"github.com/rnemeth90/yahba/internal/util"
 )
 
@@ -22,6 +23,7 @@ type Config struct {
 	HTTP2         bool
 	HTTP3         bool
 	LogLevel      string
+	Logger        *logger.Logger
 	RawOutput     bool
 	Compression   bool
 	Proxy         string

@@ -44,25 +44,25 @@ func (l *Logger) logOutput(level string, message string, v ...any) {
 
 func (l *Logger) Debug(message string, v ...any) {
 	if l.Level <= DEBUG {
-		l.logOutput("[DEBUG]::", message, v...)
+		l.logOutput("[DEBUG]", message, v...)
 	}
 }
 
 func (l *Logger) Info(message string, v ...any) {
 	if l.Level <= INFO {
-		l.logOutput("[INFO]::", message, v...)
+		l.logOutput("[INFO]", message, v...)
 	}
 }
 
 func (l *Logger) Warn(message string, v ...any) {
 	if l.Level <= WARN {
-		l.logOutput("[WARN]::", message, v...)
+		l.logOutput("[WARN]", message, v...)
 	}
 }
 
 func (l *Logger) Error(message string, v ...any) {
 	if l.Level <= ERROR {
-		l.logOutput("[ERROR]::", message, v...)
+		l.logOutput("[ERROR]", message, v...)
 	}
 }
 

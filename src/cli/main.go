@@ -38,42 +38,50 @@ func init() {
 }
 
 func main() {
-	l := logger.NewLogger(c.LogLevel, "stdout")
-	l.Debug("parsing flags")
 	pflag.Parse()
+	l := logger.NewLogger(c.LogLevel, "stdout")
+	c.Logger = l
+	c.Logger.Debug("Starting YAHBA with parsed flags")
 
-	if err := run(c, l); err != nil {
-		l.Error("error: %v\n", err)
+	if err := run(c); err != nil {
+		c.Logger.Error("Application encountered a critical error: %v", err)
 		os.Exit(1)
 	}
 }
 
-func run(c config.Config, l *logger.Logger) error {
+func run(c config.Config) error {
+	c.Logger.Debug("Validating configuration")
 	if err := c.Validate(); err != nil {
+		c.Logger.Error("Configuration validation failed: %v", err)
 		return err
 	}
+	c.Logger.Info("Configuration validated successfully")
 
-	// Parse headers once
 	if c.Headers != "" {
+		c.Logger.Debug("Parsing headers: %s", c.Headers)
 		parsedHeaders, err := util.ParseHeaders(c.Headers)
 		if err != nil {
+			c.Logger.Error("Error parsing headers: %v", err)
 			return fmt.Errorf("error parsing headers: %w", err)
 		}
 		c.ParsedHeaders = parsedHeaders
+		c.Logger.Info("Headers parsed successfully")
 	}
 
-	// Create jobs based on the number of requests
+	c.Logger.Info("Creating %d jobs for requests to %s", c.Requests, c.Host)
 	jobs := make([]stressor.Job, c.Requests)
 	for i := 0; i < c.Requests; i++ {
 		jobs[i] = stressor.Job{Host: c.Host, Method: c.Method, Body: c.Body}
 	}
 
 	reportChan := make(chan report.Report, c.Requests)
+	c.Logger.Info("Starting worker pool with %d requests per second (RPS)", c.RPS)
 	go func() {
 		stressor.WorkerPool(c, jobs, reportChan)
 	}()
+	c.Logger.Info("Worker pool started successfully")
 
-	// Generate report based on output format
+	c.Logger.Info("Will generate report in %s format", c.OutputFormat)
 	var reportOutput string
 	var err error
 	switch c.OutputFormat {
@@ -85,9 +93,10 @@ func run(c config.Config, l *logger.Logger) error {
 		reportOutput, err = report.ParseRaw(reportChan)
 	}
 	if err != nil {
-		l.Error("error generating report: %v", err)
+		c.Logger.Error("Error generating report: %v", err)
 		return err
 	}
+	c.Logger.Info("Report generated successfully")
 
 	fmt.Println(reportOutput)
 	return nil
