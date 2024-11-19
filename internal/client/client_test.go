@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/rnemeth90/yahba/internal/config"
+	"github.com/rnemeth90/yahba/internal/logger"
 )
 
 func TestNewClient(t *testing.T) {
@@ -15,6 +16,7 @@ func TestNewClient(t *testing.T) {
 		Timeout:     15,
 		KeepAlive:   true,
 		Compression: false,
+		Logger:      logger.NewLogger("info", "stdout"),
 	}
 
 	client, err := NewClient(cfg)
@@ -49,6 +51,7 @@ func TestGETRequest(t *testing.T) {
 	cfg := config.Config{
 		Host:   testServer.URL,
 		Method: http.MethodGet,
+		Logger: logger.NewLogger("info", "stdout"),
 	}
 	client, err := NewClient(cfg)
 	if err != nil {
@@ -70,6 +73,7 @@ func TestGETRequest(t *testing.T) {
 func TestCustomResolver(t *testing.T) {
 	cfg := config.Config{
 		Resolver: "8.8.8.8:53",
+		Logger:   logger.NewLogger("info", "stdout"),
 	}
 
 	client, err := NewClient(cfg)
@@ -97,7 +101,8 @@ func TestProxyConfiguration(t *testing.T) {
 	defer proxyServer.Close()
 
 	cfg := config.Config{
-		Proxy: proxyServer.URL,
+		Proxy:  proxyServer.URL,
+		Logger: logger.NewLogger("info", "stdout"),
 	}
 
 	client, err := NewClient(cfg)
@@ -120,6 +125,7 @@ func TestProxyConfiguration(t *testing.T) {
 func TestSkipDNS(t *testing.T) {
 	cfg := config.Config{
 		SkipDNS: false,
+		Logger:  logger.NewLogger("info", "stdout"),
 	}
 
 	client, err := NewClient(cfg)
@@ -137,6 +143,7 @@ func TestSkipDNS(t *testing.T) {
 func TestTLSConfig(t *testing.T) {
 	cfg := config.Config{
 		Insecure: true,
+		Logger:   logger.NewLogger("info", "stdout"),
 	}
 
 	client, err := NewClient(cfg)

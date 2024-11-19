@@ -67,7 +67,6 @@ func ParseJSON(report chan Report) (string, error) {
 		return "", errors.New("channel unexpectedly closed...")
 	}
 
-	fmt.Println("parsing json report...")
 	jsonStr, err := json.MarshalIndent(result, "", "  ")
 	if err != nil {
 		return "", err
@@ -82,7 +81,6 @@ func ParseYAML(report chan Report) (string, error) {
 		return "", errors.New("channel unexpectedly closed...")
 	}
 
-	fmt.Println("parsing yaml report...")
 	yamlStr, err := yaml.Marshal(result)
 	if err != nil {
 		return "", err

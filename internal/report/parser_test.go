@@ -1,9 +1,12 @@
 package report
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 	"time"
+
+	"gopkg.in/yaml.v3"
 )
 
 // Helper function to create a sample Report for testing
@@ -101,14 +104,19 @@ func TestParseJSON(t *testing.T) {
 		t.Fatalf("unexpected error in ParseJSON: %v", err)
 	}
 
-	if !strings.Contains(output, `"TotalRequests": 100`) {
-		t.Errorf("expected 'TotalRequests': 100 in JSON output, got: %s", output)
+	var parsedReport Report
+	if err := json.Unmarshal([]byte(output), &parsedReport); err != nil {
+		t.Fatalf("failed to parse JSON output: %v", err)
 	}
-	if !strings.Contains(output, `"Latency"`) {
-		t.Errorf("expected 'Latency' section in JSON output, got: %s", output)
+
+	if parsedReport.TotalRequests != 100 {
+		t.Errorf("expected TotalRequests 100, got %d", parsedReport.TotalRequests)
 	}
-	if !strings.Contains(output, `"StatusCodes"`) {
-		t.Errorf("expected 'StatusCodes' section in JSON output, got: %s", output)
+	if parsedReport.Latency.Min != "20ms" {
+		t.Errorf("expected Latency.Min '20ms', got %s", parsedReport.Latency.Min)
+	}
+	if parsedReport.StatusCodes.Num200 != 90 {
+		t.Errorf("expected StatusCodes.Num200 90, got %d", parsedReport.StatusCodes.Num200)
 	}
 }
 
@@ -132,14 +140,19 @@ func TestParseYAML(t *testing.T) {
 		t.Fatalf("unexpected error in ParseYAML: %v", err)
 	}
 
-	if !strings.Contains(output, "TotalRequests: 100") {
-		t.Errorf("expected 'TotalRequests: 100' in YAML output, got: %s", output)
+	var parsedReport Report
+	if err := yaml.Unmarshal([]byte(output), &parsedReport); err != nil {
+		t.Fatalf("failed to parse YAML output: %v", err)
 	}
-	if !strings.Contains(output, "Latency:") {
-		t.Errorf("expected 'Latency' section in YAML output, got: %s", output)
+
+	if parsedReport.TotalRequests != 100 {
+		t.Errorf("expected TotalRequests 100, got %d", parsedReport.TotalRequests)
 	}
-	if !strings.Contains(output, "StatusCodes:") {
-		t.Errorf("expected 'StatusCodes' section in YAML output, got: %s", output)
+	if parsedReport.Latency.Min != "20ms" {
+		t.Errorf("expected Latency.Min '20ms', got %s", parsedReport.Latency.Min)
+	}
+	if parsedReport.StatusCodes.Num200 != 90 {
+		t.Errorf("expected StatusCodes.Num200 90, got %d", parsedReport.StatusCodes.Num200)
 	}
 }
 

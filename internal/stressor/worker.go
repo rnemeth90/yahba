@@ -2,7 +2,6 @@ package stressor
 
 import (
 	"bytes"
-	"log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -37,6 +36,7 @@ func newWorker(id int, jobs <-chan Job, results chan<- report.Result, client *ht
 		Config:  cfg,
 	}
 }
+
 func (w *Worker) work(wg *sync.WaitGroup) {
 	defer wg.Done()
 
@@ -98,7 +98,6 @@ func (w *Worker) work(wg *sync.WaitGroup) {
 			continue
 		}
 
-		// Dump response and count bytes received
 		bytesReceived, err := httputil.DumpResponse(resp, true)
 		if err != nil {
 			w.Config.Logger.Error("Worker %d: Failed to dump response from %s: %v", w.ID, job.Host, err)
@@ -164,7 +163,6 @@ func WorkerPool(cfg config.Config, jobs []Job, reportChan chan<- report.Report) 
 	var totalBytesReceived int
 	resultCodes := make(map[int]int)
 
-	log.Println("parsing results...")
 	for result := range resultChan {
 		resultCodes[result.ResultCode]++
 		totalRequests++
