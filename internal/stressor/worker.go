@@ -41,10 +41,8 @@ func (w *Worker) work(wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	for job := range w.Jobs {
-		// Start processing the job
 		w.Config.Logger.Debug("Worker %d: Starting job for %s with method %s", w.ID, job.Host, job.Method)
 
-		// Create the HTTP request
 		req, err := http.NewRequest(job.Method, job.Host, bytes.NewReader([]byte(job.Body)))
 		if err != nil {
 			w.Config.Logger.Error("Worker %d: Failed to create request for %s: %v", w.ID, job.Host, err)
@@ -52,19 +50,16 @@ func (w *Worker) work(wg *sync.WaitGroup) {
 			continue
 		}
 
-		// Add headers to the request and log them
 		for _, h := range w.Config.ParsedHeaders {
 			req.Header.Add(h.Key, h.Value)
 		}
 		w.Config.Logger.Debug("Worker %d: Request headers set: %v", w.ID, req.Header)
 
-		// Set HTTP protocol if HTTP/2 is disabled
 		if !w.Config.HTTP2 {
 			req.Proto = "HTTP/1.1"
 			w.Config.Logger.Debug("Worker %d: Using HTTP/1.1 for request to %s", w.ID, job.Host)
 		}
 
-		// Track start time and bytes sent
 		start := time.Now()
 		result := report.Result{
 			WorkerID:  w.ID,
@@ -73,7 +68,6 @@ func (w *Worker) work(wg *sync.WaitGroup) {
 			TargetURL: job.Host,
 		}
 
-		// Log request data and count bytes sent
 		bytesSent, err := httputil.DumpRequest(req, true)
 		if err != nil {
 			w.Config.Logger.Warn("Worker %d: Failed to dump request for %s: %v", w.ID, job.Host, err)
@@ -83,7 +77,6 @@ func (w *Worker) work(wg *sync.WaitGroup) {
 		result.BytesSent = len(bytesSent)
 		w.Config.Logger.Debug("Worker %d: Sent %d bytes to %s", w.ID, result.BytesSent, job.Host)
 
-		// Execute the HTTP request
 		resp, err := w.Client.Do(req)
 		if err != nil {
 			if urlErr, ok := err.(*url.Error); ok && urlErr.Timeout() {
@@ -108,13 +101,11 @@ func (w *Worker) work(wg *sync.WaitGroup) {
 		result.BytesReceived = len(bytesReceived)
 		w.Config.Logger.Debug("Worker %d: Received %d bytes from %s", w.ID, result.BytesReceived, job.Host)
 
-		// Record response time and status
 		result.EndTime = time.Now()
 		result.ElapsedTime = result.EndTime.Sub(start)
 		result.ResultCode = resp.StatusCode
 		w.Config.Logger.Info("Worker %d: Completed job for %s with status %d in %s", w.ID, job.Host, result.ResultCode, result.ElapsedTime)
 
-		// Send result and close the response body
 		w.Results <- result
 		resp.Body.Close()
 	}
@@ -138,21 +129,18 @@ func WorkerPool(cfg config.Config, jobs []Job, reportChan chan<- report.Report) 
 		go worker.work(wg)
 	}
 
-	// Throttle the rate at which jobs are added to the job channel based on cfg.RPS
 	ticker := time.NewTicker(time.Second / time.Duration(cfg.RPS))
 	defer ticker.Stop()
 
-	// put jobs on the job channel
 	go func() {
 		for _, job := range jobs {
-			<-ticker.C // Limit the job addition based on the RPS
+			<-ticker.C
 			cfg.Logger.Debug("Dispatching job to %s", job.Host)
 			jobChan <- job
 		}
 		close(jobChan)
 	}()
 
-	// Wait for all workers to finish
 	wg.Wait()
 	close(resultChan)
 

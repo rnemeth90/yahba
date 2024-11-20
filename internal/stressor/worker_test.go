@@ -30,26 +30,23 @@ func TestWorker(t *testing.T) {
 	cfg := config.Config{
 		Host:    server.URL,
 		Method:  http.MethodGet,
-		Timeout: 1, // Timeout for the HTTP client
+		Timeout: 1,
 		Logger:  logger.NewLogger("info", "stdout"),
 	}
 
 	jobChan := make(chan Job, 1)
 	resultChan := make(chan report.Result, 1)
 
-	// Add a single job and close the channel
 	job := Job{Host: cfg.Host, Method: cfg.Method}
 	jobChan <- job
 	close(jobChan)
 
-	// Create a worker
-	client := &http.Client{Timeout: 2 * time.Second}
+	client := &http.Client{Timeout: time.Duration(cfg.Timeout) * time.Second}
 	worker := newWorker(1, jobChan, resultChan, client, cfg)
 
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
 
-	// Run the worker and wait with a timeout
 	done := make(chan struct{})
 	go func() {
 		worker.work(wg)
@@ -58,7 +55,6 @@ func TestWorker(t *testing.T) {
 
 	select {
 	case <-done:
-		// Check results
 		result := <-resultChan
 		if result.WorkerID != 1 {
 			t.Errorf("Expected WorkerID 1, got %d", result.WorkerID)
@@ -118,50 +114,48 @@ func TestWorker(t *testing.T) {
 // 	}
 // }
 
-//
-// // Test the Worker function with a timeout
-// func TestWorkerTimeout(t *testing.T) {
-// 	// Simulate a server with a delay to trigger a timeout
-// 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-// 		time.Sleep(2 * time.Second)
-// 		w.WriteHeader(http.StatusOK)
-// 	}))
-// 	defer server.Close()
-//
-// 	cfg := config.Config{
-// 		Host:    server.URL,
-// 		Method:  http.MethodGet,
-//    Timeout:  int(5 * time.Second),
-// 		Logger:  logger.NewLogger("info", "stdout"),
-// 	}
-//
-// 	jobChan := make(chan Job, 1)
-// 	resultChan := make(chan report.Result, 1)
-//
-// 	// Add job to the job channel
-// 	job := Job{Host: server.URL, Method: http.MethodGet}
-// 	jobChan <- job
-//
-// 	client := &http.Client{
-// 		Timeout: time.Duration(cfg.Timeout) * time.Second,
-// 	}
-// 	worker := newWorker(1, jobChan, resultChan, client, cfg)
-// 	wg := &sync.WaitGroup{}
-// 	wg.Add(1)
-//
-// 	// Start the worker and wait for it to finish
-// 	go worker.work(wg)
-// 	wg.Wait()
-//
-// 	// Check that the result is a timeout
-// 	result := <-resultChan
-// 	if !result.Timeout {
-// 		t.Error("Expected request to timeout, but it did not")
-// 	}
-// 	if result.Error == nil {
-// 		t.Error("Expected error due to timeout, got nil")
-// 	}
-// }
+// Test the Worker function with a timeout
+func TestWorkerTimeout(t *testing.T) {
+	// simulate a server with a delay to trigger a timeout
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(2 * time.Second)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	cfg := config.Config{
+		Host:    server.URL,
+		Method:  http.MethodGet,
+		Timeout: 1,
+		Logger:  logger.NewLogger("info", "stdout"),
+	}
+
+	jobChan := make(chan Job, 1)
+	resultChan := make(chan report.Result, 1)
+
+	job := Job{Host: server.URL, Method: http.MethodGet}
+	jobChan <- job
+	close(jobChan)
+
+	client := &http.Client{
+		Timeout: time.Duration(cfg.Timeout) * time.Second,
+	}
+	worker := newWorker(1, jobChan, resultChan, client, cfg)
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
+
+	go worker.work(wg)
+	wg.Wait()
+
+	result := <-resultChan
+	if !result.Timeout {
+		t.Error("Expected request to timeout, but it did not")
+	}
+
+	if result.Error == nil {
+		t.Error("Expected error due to timeout, got nil")
+	}
+}
 
 // Test the WorkerPool function with multiple jobs
 func TestWorkerPool(t *testing.T) {
@@ -179,17 +173,13 @@ func TestWorkerPool(t *testing.T) {
 	reportChan := make(chan report.Report, 1)
 	jobs := make([]Job, cfg.Requests)
 
-	// Create multiple jobs
 	for i := 0; i < cfg.Requests; i++ {
 		jobs[i] = Job{Host: cfg.Host, Method: cfg.Method}
 	}
 
-	// Start WorkerPool
 	go WorkerPool(cfg, jobs, reportChan)
 	report := <-reportChan
-	// close(reportChan)
 
-	// Check the report metrics
 	if report.TotalRequests != cfg.Requests {
 		t.Errorf("Expected TotalRequests %d, got %d", cfg.Requests, report.TotalRequests)
 	}
