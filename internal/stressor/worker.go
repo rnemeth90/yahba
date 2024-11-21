@@ -82,6 +82,7 @@ func (w *Worker) work(wg *sync.WaitGroup) {
 			if urlErr, ok := err.(*url.Error); ok && urlErr.Timeout() {
 				w.Config.Logger.Warn("Worker %d: Request to %s timed out", w.ID, job.Host)
 				result.Timeout = true
+				result.Error = err
 				w.Results <- result
 				continue
 			}
