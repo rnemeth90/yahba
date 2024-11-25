@@ -39,8 +39,7 @@ func init() {
 
 func main() {
 	pflag.Parse()
-	l := logger.NewLogger(c.LogLevel, "stdout")
-	c.Logger = l
+	c.Logger = logger.NewLogger(c.LogLevel, "stdout")
 	c.Logger.Debug("Starting YAHBA with parsed flags")
 
 	if err := run(c); err != nil {

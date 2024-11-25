@@ -20,3 +20,7 @@ http1.1
 
 verbose (logging package)
 output
+
+todo:
+[ ] server
+[ ] usage()
