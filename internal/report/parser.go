@@ -53,11 +53,12 @@ func ParseRaw(reportChan chan Report) (string, error) {
 	builder.WriteString(fmt.Sprintf("  Client Errors:          %d\n", report.ErrorBreakdown.ClientErrors))
 	builder.WriteString("\n")
 
-	builder.WriteString("Individual Request Results:\n")
-	for _, r := range report.Results {
-		builder.WriteString(fmt.Sprintf("  Worker %d | Status: %d | Time: %s | URL: %s | Timeout: %t", r.WorkerID, r.ResultCode, r.ElapsedTime, r.TargetURL, r.Timeout))
-	}
-
+	// this is so ugly... need to fix
+	// builder.WriteString("Individual Request Results:\n")
+	// for _, r := range report.Results {
+	// 	builder.WriteString(fmt.Sprintf("  Worker %d | Status: %d | Time: %s | URL: %s | Timeout: %t", r.WorkerID, r.ResultCode, r.ElapsedTime, r.TargetURL, r.Timeout))
+	// }
+	//
 	return builder.String(), nil
 }
 

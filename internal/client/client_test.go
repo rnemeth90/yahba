@@ -49,7 +49,7 @@ func TestGETRequest(t *testing.T) {
 	defer testServer.Close()
 
 	cfg := config.Config{
-		Host:   testServer.URL,
+		URL:    testServer.URL,
 		Method: http.MethodGet,
 		Logger: logger.NewLogger("info", "stdout"),
 	}

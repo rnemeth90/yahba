@@ -28,7 +28,7 @@ func TestWorker(t *testing.T) {
 	defer server.Close()
 
 	cfg := config.Config{
-		Host:    server.URL,
+		URL:     server.URL,
 		Method:  http.MethodGet,
 		Timeout: 1,
 		Logger:  logger.NewLogger("info", "stdout"),
@@ -37,7 +37,7 @@ func TestWorker(t *testing.T) {
 	jobChan := make(chan Job, 1)
 	resultChan := make(chan report.Result, 1)
 
-	job := Job{Host: cfg.Host, Method: cfg.Method}
+	job := Job{Host: cfg.URL, Method: cfg.Method}
 	jobChan <- job
 	close(jobChan)
 
@@ -75,7 +75,7 @@ func TestWorker(t *testing.T) {
 //
 // 	// Configuration and channels
 // 	cfg := config.Config{
-// 		Host:    server.URL,
+// 		URL:    server.URL,
 // 		Method:  http.MethodGet,
 // 		Timeout: int(5 * time.Second),
 // 		HTTP2:   true,
@@ -87,7 +87,7 @@ func TestWorker(t *testing.T) {
 // 	client := http.DefaultClient
 //
 // 	// Create a worker and a job
-// 	job := Job{Host: server.URL, Method: http.MethodGet}
+// 	job := Job{URL: server.URL, Method: http.MethodGet}
 // 	jobChan <- job
 //
 // 	worker := newWorker(1, jobChan, resultChan, client, cfg)
@@ -124,7 +124,7 @@ func TestWorkerTimeout(t *testing.T) {
 	defer server.Close()
 
 	cfg := config.Config{
-		Host:    server.URL,
+		URL:     server.URL,
 		Method:  http.MethodGet,
 		Timeout: 1,
 		Logger:  logger.NewLogger("info", "stdout"),
@@ -163,7 +163,7 @@ func TestWorkerPool(t *testing.T) {
 	defer server.Close()
 
 	cfg := config.Config{
-		Host:     server.URL,
+		URL:      server.URL,
 		Method:   http.MethodGet,
 		Timeout:  int(5 * time.Second),
 		RPS:      2,
@@ -174,7 +174,7 @@ func TestWorkerPool(t *testing.T) {
 	jobs := make([]Job, cfg.Requests)
 
 	for i := 0; i < cfg.Requests; i++ {
-		jobs[i] = Job{Host: cfg.Host, Method: cfg.Method}
+		jobs[i] = Job{Host: cfg.URL, Method: cfg.Method}
 	}
 
 	go WorkerPool(cfg, jobs, reportChan)

@@ -10,7 +10,7 @@ import (
 )
 
 type Config struct {
-	Host          string
+	URL           string
 	Method        string
 	Headers       string
 	Body          string
@@ -39,15 +39,15 @@ type Config struct {
 var validHTTPMethods = []string{"GET", "HEAD", "PUT", "POST"}
 
 func (config *Config) Validate() error {
-	if config.Host == "" {
+	if config.URL == "" {
 		return ErrMissingHost
 	}
 
-	if !strings.HasPrefix(config.Host, "http") {
+	if !strings.HasPrefix(config.URL, "http") {
 		return ErrInvalidProtocolScheme
 	}
 
-	u, err := url.Parse(config.Host)
+	u, err := url.Parse(config.URL)
 	if err != nil {
 		return ErrInvalidHost
 	}

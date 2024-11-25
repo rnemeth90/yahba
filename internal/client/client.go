@@ -43,19 +43,19 @@ func NewClient(cfg config.Config) (*http.Client, error) {
 	}
 
 	if cfg.SkipDNS {
-		cfg.Logger.Debug("Configuring DNS skipping for host: %s", cfg.Host)
+		cfg.Logger.Debug("Configuring DNS skipping for host: %s", cfg.URL)
 		t.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
 			_, port, err := net.SplitHostPort(addr)
 			if err != nil {
-				if strings.HasPrefix(cfg.Host, "https://") {
+				if strings.HasPrefix(cfg.URL, "https://") {
 					port = "443"
 				} else {
 					port = "80"
 				}
 			}
 
-			cfg.Logger.Debug("Bypassing DNS resolution for host: %s:%s", cfg.Host, port)
-			return net.Dial(network, net.JoinHostPort(cfg.Host, port))
+			cfg.Logger.Debug("Bypassing DNS resolution for host: %s:%s", cfg.URL, port)
+			return net.Dial(network, net.JoinHostPort(cfg.URL, port))
 		}
 	}
 

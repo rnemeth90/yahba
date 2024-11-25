@@ -2,6 +2,7 @@ package stressor
 
 import (
 	"bytes"
+	"fmt"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -82,21 +83,19 @@ func (w *Worker) work(wg *sync.WaitGroup) {
 			if urlErr, ok := err.(*url.Error); ok && urlErr.Timeout() {
 				w.Config.Logger.Warn("Worker %d: Request to %s timed out", w.ID, job.Host)
 				result.Timeout = true
-				result.Error = err
-				w.Results <- result
-				continue
+			} else {
+				w.Config.Logger.Error("Worker %d: Request to %s failed: %v", w.ID, job.Host, err)
 			}
-			w.Config.Logger.Error("Worker %d: Request to %s failed: %v", w.ID, job.Host, err)
 			result.Error = err
-			w.Results <- result
+			w.Results <- result // BUG: returning early before adding the other result properties (below) results in an empty report
 			continue
 		}
 
 		bytesReceived, err := httputil.DumpResponse(resp, true)
 		if err != nil {
 			w.Config.Logger.Error("Worker %d: Failed to dump response from %s: %v", w.ID, job.Host, err)
-			w.Results <- report.Result{WorkerID: w.ID, Error: err}
 			resp.Body.Close()
+			w.Results <- report.Result{WorkerID: w.ID, Error: err}
 			continue
 		}
 		result.BytesReceived = len(bytesReceived)
@@ -145,6 +144,10 @@ func WorkerPool(cfg config.Config, jobs []Job, reportChan chan<- report.Report) 
 	wg.Wait()
 	close(resultChan)
 
+	for result := range resultChan {
+		fmt.Println("result:", result.ResultCode)
+	}
+
 	report := report.Report{}
 	cfg.Logger.Info("Aggregating results into report")
 	var totalRequests int
@@ -153,6 +156,7 @@ func WorkerPool(cfg config.Config, jobs []Job, reportChan chan<- report.Report) 
 	resultCodes := make(map[int]int)
 
 	for result := range resultChan {
+		cfg.Logger.Info("Parsing the results on the resultChan")
 		resultCodes[result.ResultCode]++
 		totalRequests++
 		totalBytesSent += result.BytesSent

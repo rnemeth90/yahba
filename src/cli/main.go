@@ -15,7 +15,7 @@ import (
 var c config.Config
 
 func init() {
-	pflag.StringVarP(&c.Host, "host", "h", "", "The target URL to stress test. This should include the protocol (e.g., http:// or https://)")
+	pflag.StringVarP(&c.URL, "url", "u", "", "The target URL to stress test. This should include the protocol (e.g., http:// or https://)")
 	pflag.IntVarP(&c.Requests, "requests", "r", 4, "The total number of requests to send during the test")
 	pflag.StringVarP(&c.Method, "method", "m", "GET", "The HTTP method to use for each request (e.g., GET, POST, PUT)")
 	pflag.StringVarP(&c.Headers, "headers", "H", "", "Custom headers to add to each request, formatted as 'Key1:Value1,Key2:Value2'")
@@ -67,10 +67,10 @@ func run(c config.Config) error {
 		c.Logger.Info("Headers parsed successfully")
 	}
 
-	c.Logger.Info("Creating %d jobs for requests to %s", c.Requests, c.Host)
+	c.Logger.Info("Creating %d jobs for requests to %s", c.Requests, c.URL)
 	jobs := make([]stressor.Job, c.Requests)
 	for i := 0; i < c.Requests; i++ {
-		jobs[i] = stressor.Job{Host: c.Host, Method: c.Method, Body: c.Body}
+		jobs[i] = stressor.Job{Host: c.URL, Method: c.Method, Body: c.Body}
 	}
 
 	reportChan := make(chan report.Report, c.Requests)
