@@ -2,7 +2,6 @@ package stressor
 
 import (
 	"bytes"
-	"fmt"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -47,7 +46,12 @@ func (w *Worker) work(wg *sync.WaitGroup) {
 		req, err := http.NewRequest(job.Method, job.Host, bytes.NewReader([]byte(job.Body)))
 		if err != nil {
 			w.Config.Logger.Error("Worker %d: Failed to create request for %s: %v", w.ID, job.Host, err)
-			w.Results <- report.Result{WorkerID: w.ID, Error: err}
+			w.Results <- report.Result{
+				WorkerID:  w.ID,
+				Method:    job.Method,
+				TargetURL: job.Host,
+				Error:     err,
+			}
 			continue
 		}
 
@@ -72,7 +76,10 @@ func (w *Worker) work(wg *sync.WaitGroup) {
 		bytesSent, err := httputil.DumpRequest(req, true)
 		if err != nil {
 			w.Config.Logger.Warn("Worker %d: Failed to dump request for %s: %v", w.ID, job.Host, err)
-			w.Results <- report.Result{WorkerID: w.ID, Error: err}
+			result.Error = err
+			result.EndTime = time.Now()
+			result.ElapsedTime = result.EndTime.Sub(start)
+			w.Results <- result
 			continue
 		}
 		result.BytesSent = len(bytesSent)
@@ -87,15 +94,20 @@ func (w *Worker) work(wg *sync.WaitGroup) {
 				w.Config.Logger.Error("Worker %d: Request to %s failed: %v", w.ID, job.Host, err)
 			}
 			result.Error = err
-			w.Results <- result // BUG: returning early before adding the other result properties (below) results in an empty report
+			result.EndTime = time.Now()
+			result.ElapsedTime = result.EndTime.Sub(start)
+			w.Results <- result
 			continue
 		}
 
 		bytesReceived, err := httputil.DumpResponse(resp, true)
 		if err != nil {
 			w.Config.Logger.Error("Worker %d: Failed to dump response from %s: %v", w.ID, job.Host, err)
+			result.Error = err
+			result.EndTime = time.Now()
+			result.ElapsedTime = result.EndTime.Sub(start)
 			resp.Body.Close()
-			w.Results <- report.Result{WorkerID: w.ID, Error: err}
+			w.Results <- result
 			continue
 		}
 		result.BytesReceived = len(bytesReceived)
@@ -104,7 +116,7 @@ func (w *Worker) work(wg *sync.WaitGroup) {
 		result.EndTime = time.Now()
 		result.ElapsedTime = result.EndTime.Sub(start)
 		result.ResultCode = resp.StatusCode
-		w.Config.Logger.Info("Worker %d: Completed job for %s with status %d in %s", w.ID, job.Host, result.ResultCode, result.ElapsedTime)
+		w.Config.Logger.Debug("Worker %d: Completed job for %s with status %d in %s", w.ID, job.Host, result.ResultCode, result.ElapsedTime)
 
 		w.Results <- result
 		resp.Body.Close()
@@ -144,10 +156,6 @@ func WorkerPool(cfg config.Config, jobs []Job, reportChan chan<- report.Report) 
 	wg.Wait()
 	close(resultChan)
 
-	for result := range resultChan {
-		fmt.Println("result:", result.ResultCode)
-	}
-
 	report := report.Report{}
 	cfg.Logger.Info("Aggregating results into report")
 	var totalRequests int
@@ -156,7 +164,7 @@ func WorkerPool(cfg config.Config, jobs []Job, reportChan chan<- report.Report) 
 	resultCodes := make(map[int]int)
 
 	for result := range resultChan {
-		cfg.Logger.Info("Parsing the results on the resultChan")
+		cfg.Logger.Debug("Parsing the results on the result channel")
 		resultCodes[result.ResultCode]++
 		totalRequests++
 		totalBytesSent += result.BytesSent
