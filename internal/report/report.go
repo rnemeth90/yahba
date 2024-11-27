@@ -57,6 +57,7 @@ type StatusCodes struct {
 	Num400 int `json:"400"`
 	Num403 int `json:"403"`
 	Num404 int `json:"404"`
+	Num408 int `json:"408"`
 	Num429 int `json:"429"`
 	Num500 int `json:"500"`
 	Num502 int `json:"502"`
@@ -120,6 +121,8 @@ func (r *Report) ConvertResultCodes(m map[int]int) {
 			statusCodes.Num403 = count
 		case 404:
 			statusCodes.Num404 = count
+		case 408:
+			statusCodes.Num408 = count
 		case 429:
 			statusCodes.Num429 = count
 		case 500:

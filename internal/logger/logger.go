@@ -18,10 +18,13 @@ const (
 type Logger struct {
 	Level int
 	*log.Logger
+	Silent bool
 }
 
-func NewLogger(level string, output string) *Logger {
-	l := &Logger{}
+func New(level string, output string, silent bool) *Logger {
+	l := &Logger{
+		Silent: silent,
+	}
 
 	if err := l.SetOutputDestination(output); err != nil {
 		fmt.Fprintf(os.Stderr, "failed to set output destination: %v\n", err)
@@ -37,6 +40,10 @@ func NewLogger(level string, output string) *Logger {
 }
 
 func (l *Logger) logOutput(level string, message string, v ...any) {
+	if l.Silent {
+		return
+	}
+
 	// Format message and arguments
 	formattedMessage := fmt.Sprintf(message, v...)
 	l.Logger.Output(2, fmt.Sprintf("%s %s", level, formattedMessage))

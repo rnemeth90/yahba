@@ -90,13 +90,22 @@ func (w *Worker) work(wg *sync.WaitGroup) {
 			if urlErr, ok := err.(*url.Error); ok && urlErr.Timeout() {
 				w.Config.Logger.Warn("Worker %d: Request to %s timed out", w.ID, job.Host)
 				result.Timeout = true
+				result.ResultCode = http.StatusRequestTimeout
 			} else {
 				w.Config.Logger.Error("Worker %d: Request to %s failed: %v", w.ID, job.Host, err)
 			}
 			result.Error = err
 			result.EndTime = time.Now()
+
+			if resp != nil {
+				result.ResultCode = resp.StatusCode
+				result.Method = resp.Request.Method
+				result.TargetURL = resp.Request.URL.RawPath
+			}
+
 			result.ElapsedTime = result.EndTime.Sub(start)
 			w.Results <- result
+			w.Config.Logger.Debug("Worker %d: Result sent: %+v", w.ID, result)
 			continue
 		}
 
@@ -153,8 +162,11 @@ func WorkerPool(cfg config.Config, jobs []Job, reportChan chan<- report.Report) 
 		close(jobChan)
 	}()
 
-	wg.Wait()
-	close(resultChan)
+	go func() {
+		wg.Wait()
+		cfg.Logger.Debug("All workers finished, closing resultChan")
+		close(resultChan)
+	}()
 
 	report := report.Report{}
 	cfg.Logger.Info("Aggregating results into report")
@@ -165,6 +177,7 @@ func WorkerPool(cfg config.Config, jobs []Job, reportChan chan<- report.Report) 
 
 	for result := range resultChan {
 		cfg.Logger.Debug("Parsing the results on the result channel")
+		cfg.Logger.Debug("Result Processed: %+v\n", result)
 		resultCodes[result.ResultCode]++
 		totalRequests++
 		totalBytesSent += result.BytesSent

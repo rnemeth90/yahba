@@ -9,7 +9,7 @@ import (
 )
 
 func TestSetLogLevel(t *testing.T) {
-	l := NewLogger("info", "stdout")
+	l := New("info", "stdout", false)
 
 	tests := []struct {
 		level       string
@@ -53,7 +53,7 @@ func TestLogLevelBehavior(t *testing.T) {
 
 	for _, tt := range tests {
 		var buf bytes.Buffer
-		l := NewLogger(tt.setLevel, "stdout")
+		l := New(tt.setLevel, "stdout", false)
 		l.Logger.SetOutput(&buf) // Redirect output to buffer for testing
 
 		switch tt.logLevel {
@@ -86,7 +86,7 @@ func TestSetOutputDestination(t *testing.T) {
 
 	for _, tt := range tests {
 		var buf bytes.Buffer
-		l := NewLogger("info", tt.destination)
+		l := New("info", tt.destination, false)
 		l.Logger.SetOutput(&buf) // Redirect to buffer to verify output
 
 		l.Info("Test message")
@@ -96,7 +96,7 @@ func TestSetOutputDestination(t *testing.T) {
 		}
 	}
 
-	l := NewLogger("info", "file")
+	l := New("info", "file", false)
 	defer func() {
 		if l.Logger != nil && l.Logger.Writer() != os.Stdout && l.Logger.Writer() != os.Stderr {
 			if f, ok := l.Logger.Writer().(*os.File); ok {

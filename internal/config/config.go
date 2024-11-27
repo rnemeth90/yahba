@@ -34,6 +34,7 @@ type Config struct {
 	SkipDNS       bool
 	OutputFile    string
 	OutputFormat  string
+	Silent bool
 }
 
 var validHTTPMethods = []string{"GET", "HEAD", "PUT", "POST"}
