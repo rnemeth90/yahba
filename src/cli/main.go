@@ -35,19 +35,13 @@ func init() {
 	pflag.BoolVar(&c.SkipDNS, "skip-dns", false, "If set, skips DNS resolution and uses a direct IP address")
 	pflag.StringVar(&c.OutputFormat, "output-format", "raw", "Output format: json, yaml, or raw")
 	pflag.StringVar(&c.OutputFile, "out", "stdout", "File path to write results to; defaults to stdout. stdout, stderr, file")
+	pflag.StringVar(&c.FileName, "filename", "", "Specify a file name when --out is set to file file")
 	pflag.BoolVar(&c.Silent, "silent", false, "Do not display log messages. Defaults to true when --output-format is set to 'yaml' or 'json'")
 }
 
 func main() {
 	pflag.Parse()
-	c.Logger = logger.New(c.LogLevel, c.OutputFile, c.Silent)
-
-	// if ((output-format == json or yaml) and c.OutputFile != "file"):
-	//    silent = true
-	if (c.OutputFormat == "json" || c.OutputFormat == "yaml") && c.OutputFile != "file" {
-		c.Logger.Silent = true
-	}
-
+	c.Logger = logger.New(c.LogLevel, c.OutputFile, c.Silent, c.FileName)
 	c.Logger.Debug("Starting YAHBA with parsed flags")
 
 	if err := run(c); err != nil {
@@ -105,6 +99,6 @@ func run(c config.Config) error {
 	}
 	c.Logger.Info("Report generated successfully")
 
-	fmt.Println(reportOutput)
+	fmt.Fprintln(c.Logger.Writer(), reportOutput)
 	return nil
 }

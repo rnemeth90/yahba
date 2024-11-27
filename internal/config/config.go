@@ -34,7 +34,8 @@ type Config struct {
 	SkipDNS       bool
 	OutputFile    string
 	OutputFormat  string
-	Silent bool
+	FileName      string
+	Silent        bool
 }
 
 var validHTTPMethods = []string{"GET", "HEAD", "PUT", "POST"}
@@ -42,6 +43,14 @@ var validHTTPMethods = []string{"GET", "HEAD", "PUT", "POST"}
 func (config *Config) Validate() error {
 	if config.URL == "" {
 		return ErrMissingHost
+	}
+
+	if (config.OutputFormat == "json" || config.OutputFormat == "yaml") && config.OutputFile != "file" {
+		config.Logger.Silent = true
+	}
+
+	if config.OutputFormat == "file" && config.FileName == "" {
+
 	}
 
 	if !strings.HasPrefix(config.URL, "http") {

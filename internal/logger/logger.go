@@ -5,7 +5,6 @@ import (
 	"log"
 	"os"
 	"strings"
-	"time"
 )
 
 const (
@@ -16,17 +15,17 @@ const (
 )
 
 type Logger struct {
-	Level int
-	*log.Logger
+	Level  int
 	Silent bool
+	*log.Logger
 }
 
-func New(level string, output string, silent bool) *Logger {
+func New(level string, output string, silent bool, fileName string) *Logger {
 	l := &Logger{
 		Silent: silent,
 	}
 
-	if err := l.SetOutputDestination(output); err != nil {
+	if err := l.SetOutputDestination(output, fileName); err != nil {
 		fmt.Fprintf(os.Stderr, "failed to set output destination: %v\n", err)
 		os.Exit(1)
 	}
@@ -92,7 +91,7 @@ func (l *Logger) SetLogLevel(logLevel string) error {
 	return nil
 }
 
-func (l *Logger) SetOutputDestination(destination string) error {
+func (l *Logger) SetOutputDestination(destination string, fileName string) error {
 	dest := strings.ToLower(destination)
 
 	switch dest {
@@ -101,8 +100,8 @@ func (l *Logger) SetOutputDestination(destination string) error {
 	case "stderr":
 		l.Logger = log.New(os.Stderr, "", log.LstdFlags)
 	case "file":
-		dateTimeString := time.Now().Format("2006-01-02-15-04-05")
-		fileName := fmt.Sprintf("%s%c%s-YAHBA.log", os.TempDir(), os.PathSeparator, dateTimeString)
+		// dateTimeString := time.Now().Format("2006-01-02-15-04-05")
+		// fileName := fmt.Sprintf("%s-YAHBA.log", os.TempDir(), os.PathSeparator, dateTimeString)
 		f, err := os.OpenFile(fileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
 		if err != nil {
 			return err

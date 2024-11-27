@@ -21,4 +21,5 @@ var (
 	ErrInvalidProtocolScheme = errors.New("invalid protocol scheme")
 	ErrInvalidProxyAuth      = errors.New("proxy username and password must both be provided")
 	ErrConflictingDNSOptions = errors.New("cannot use both SkipDNS and custom Resolver")
+	ErrInvalidLogFilePath    = errors.New("you must specify a log file name when writing logs to a file")
 )
