@@ -45,12 +45,8 @@ func (config *Config) Validate() error {
 		return ErrMissingHost
 	}
 
-	if (config.OutputFormat == "json" || config.OutputFormat == "yaml") && config.OutputFile != "file" {
-		config.Logger.Silent = true
-	}
-
 	if config.OutputFormat == "file" && config.FileName == "" {
-
+		return ErrInvalidLogFilePath
 	}
 
 	if !strings.HasPrefix(config.URL, "http") {
