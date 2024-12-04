@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/fatih/color"
 	"gopkg.in/yaml.v3"
 )
 
@@ -24,8 +23,8 @@ func ParseRaw(reportChan chan Report) (string, error) {
 	builder.WriteString("YAHBA Stress Test Report\n")
 	builder.WriteString("========================\n\n")
 	builder.WriteString(fmt.Sprintf("Total Requests:      %d\n", report.TotalRequests))
-	builder.WriteString(color.GreenString("Successes:           %d\n", report.Successes))
-	builder.WriteString(color.RedString("Failures:            %d\n\n", report.Failures))
+	builder.WriteString(fmt.Sprintf("Successes:           %d\n", report.Successes))
+	builder.WriteString(fmt.Sprintf("Failures:            %d\n\n", report.Failures))
 
 	builder.WriteString("Latency:\n")
 	builder.WriteString(fmt.Sprintf("  Min: %s\n", report.Latency.Min))
@@ -52,8 +51,8 @@ func ParseRaw(reportChan chan Report) (string, error) {
 	builder.WriteString(fmt.Sprintf("  504 Gateway Timeout:    %d\n\n", report.StatusCodes.Num504))
 
 	builder.WriteString("Error Breakdown:\n")
-	builder.WriteString(color.RedString("  Server Errors:          %d\n", report.ErrorBreakdown.ServerErrors))
-	builder.WriteString(color.RedString("  Client Errors:          %d\n", report.ErrorBreakdown.ClientErrors))
+	builder.WriteString(fmt.Sprintf("  Server Errors:          %d\n", report.ErrorBreakdown.ServerErrors))
+	builder.WriteString(fmt.Sprintf("  Client Errors:          %d\n", report.ErrorBreakdown.ClientErrors))
 	builder.WriteString("\n")
 
 	// bug - this is so ugly... need to fix
