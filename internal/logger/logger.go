@@ -31,11 +31,16 @@ func New(level string, output string, silent bool, fileName string) *Logger {
 	}
 
 	if err := l.SetLogLevel(level); err != nil {
+		fmt.Printf("Logger initialized with level: %d\n", l.Level)
 		fmt.Fprintf(os.Stderr, "failed to set log level: %v\n", err)
 		os.Exit(1)
 	}
 
 	return l
+}
+
+func (l *Logger) shouldLog(logLevel int) bool {
+	return l.Level <= logLevel
 }
 
 func (l *Logger) logOutput(level string, message string, v ...any) {
@@ -48,24 +53,28 @@ func (l *Logger) logOutput(level string, message string, v ...any) {
 	l.Logger.Output(2, fmt.Sprintf("%s %s", level, formattedMessage))
 }
 
+// Log debug, info, warn, and error messages
 func (l *Logger) Debug(message string, v ...any) {
 	if l.Level <= DEBUG {
 		l.logOutput("[DEBUG]", message, v...)
 	}
 }
 
+// Log info, warn, and error messages
 func (l *Logger) Info(message string, v ...any) {
 	if l.Level <= INFO {
 		l.logOutput("[INFO]", message, v...)
 	}
 }
 
+// Log warn and error messages
 func (l *Logger) Warn(message string, v ...any) {
 	if l.Level <= WARN {
 		l.logOutput("[WARN]", message, v...)
 	}
 }
 
+// Log error messages
 func (l *Logger) Error(message string, v ...any) {
 	if l.Level <= ERROR {
 		l.logOutput("[ERROR]", message, v...)

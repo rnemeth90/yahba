@@ -36,6 +36,7 @@ type Config struct {
 	OutputFormat  string
 	FileName      string
 	Silent        bool
+	Server        bool
 }
 
 var validHTTPMethods = []string{"GET", "HEAD", "PUT", "POST"}

@@ -7,6 +7,7 @@ import (
 	"github.com/rnemeth90/yahba/internal/config"
 	"github.com/rnemeth90/yahba/internal/logger"
 	"github.com/rnemeth90/yahba/internal/report"
+	"github.com/rnemeth90/yahba/internal/server"
 	"github.com/rnemeth90/yahba/internal/stressor"
 	"github.com/rnemeth90/yahba/internal/util"
 	"github.com/spf13/pflag"
@@ -27,7 +28,7 @@ func init() {
 	pflag.StringVarP(&c.Proxy, "proxy", "P", "", "The proxy server to route requests through, specified as 'IP:Port'")
 	pflag.BoolVarP(&c.KeepAlive, "keep-alive", "k", false, "Enable HTTP keep-alive, allowing TCP connections to remain open for multiple requests")
 	pflag.BoolVar(&c.HTTP2, "http2", true, "Enable HTTP/2 support for requests (default: true)")
-	pflag.StringVarP(&c.LogLevel, "log-level", "l", "info", "The logging level to use (options: debug, info, warn, error)")
+	pflag.StringVarP(&c.LogLevel, "log-level", "l", "error", "The logging level to use (options: debug, info, warn, error)")
 	pflag.BoolVar(&c.Compression, "compression", false, "Enable HTTP compression for requests (e.g., gzip)")
 	pflag.StringVar(&c.ProxyUser, "proxy-user", "", "Username for proxy authentication")
 	pflag.StringVar(&c.ProxyPassword, "proxy-password", "", "Password for proxy authentication")
@@ -36,6 +37,7 @@ func init() {
 	pflag.StringVar(&c.OutputFormat, "output-format", "raw", "Output format: json, yaml, or raw")
 	pflag.StringVar(&c.OutputFile, "out", "stdout", "File path to write results to; defaults to stdout. stdout, stderr, file")
 	pflag.StringVar(&c.FileName, "filename", "", "Specify a file name when --out is set to file file")
+	pflag.BoolVar(&c.Server, "server", false, "start a test server")
 }
 
 func main() {
@@ -55,13 +57,17 @@ func main() {
 }
 
 func run(c config.Config) error {
+	if c.Server {
+		server.New()
+	}
+
 	c.Logger.Debug("Validating configuration")
 	if err := c.Validate(); err != nil {
 		c.Logger.Error("Configuration validation failed: %v", err)
 		return err
 	}
-	c.Logger.Info("Configuration validated successfully")
 
+	c.Logger.Info("Configuration validated successfully")
 	if c.Headers != "" {
 		c.Logger.Debug("Parsing headers: %s", c.Headers)
 		parsedHeaders, err := util.ParseHeaders(c.Headers)

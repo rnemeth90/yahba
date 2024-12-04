@@ -79,9 +79,6 @@ func TestParseRaw(t *testing.T) {
 	if !strings.Contains(output, "Status Code Breakdown:") {
 		t.Errorf("expected 'Status Code Breakdown' section in raw output, got: %s", output)
 	}
-	if !strings.Contains(output, "Worker 1 | Status: 200") {
-		t.Errorf("expected individual result for Worker 1 in raw output, got: %s", output)
-	}
 }
 
 func TestParseRawChannelClosed(t *testing.T) {

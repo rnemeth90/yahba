@@ -31,7 +31,7 @@ func TestWorker(t *testing.T) {
 		URL:     server.URL,
 		Method:  http.MethodGet,
 		Timeout: 1,
-		Logger:  logger.New("info", "stdout", false, ""),
+		Logger:  logger.New("error", "stdout", false, ""),
 	}
 
 	jobChan := make(chan Job, 1)
@@ -80,7 +80,7 @@ func TestWorker(t *testing.T) {
 // 		Timeout: int(5 * time.Second),
 // 		HTTP2:   true,
 // 		RPS:     1,
-// 		Logger:  logger.NewLogger("info", "stdout"),
+// 		Logger:  logger.NewLogger("error", "stdout"),
 // 	}
 // 	jobChan := make(chan Job, 1)
 // 	resultChan := make(chan report.Result, 1)
@@ -127,7 +127,7 @@ func TestWorkerTimeout(t *testing.T) {
 		URL:     server.URL,
 		Method:  http.MethodGet,
 		Timeout: 1,
-		Logger:  logger.New("info", "stdout", false, ""),
+		Logger:  logger.New("error", "stdout", false, ""),
 	}
 
 	jobChan := make(chan Job, 1)
@@ -168,7 +168,7 @@ func TestWorkerPool(t *testing.T) {
 		Timeout:  int(5 * time.Second),
 		RPS:      2,
 		Requests: 5,
-		Logger:   logger.New("info", "stdout", false, ""),
+		Logger:   logger.New("error", "stdout", false, ""),
 	}
 	reportChan := make(chan report.Report, 1)
 	jobs := make([]Job, cfg.Requests)

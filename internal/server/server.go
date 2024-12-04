@@ -1,13 +1,16 @@
 package server
 
-import "net/http"
+import (
+	"net/http"
+
+	"github.com/rnemeth90/yahba/internal/logger"
+)
 
 func New() {
-	server := http.Server{}
+	l := logger.New("debug", "stdout", false, "")
 
-	http.HandleFunc("/test", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	})
+	http.HandleFunc("/test", testHandler)
 
-	server.ListenAndServe()
+	l.Debug("Starting server")
+	http.ListenAndServe(":8085", nil)
 }
