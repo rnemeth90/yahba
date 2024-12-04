@@ -1,15 +1,18 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/rnemeth90/yahba/internal/config"
 	"github.com/rnemeth90/yahba/internal/logger"
 	"github.com/rnemeth90/yahba/internal/report"
 	"github.com/rnemeth90/yahba/internal/server"
-	"github.com/rnemeth90/yahba/internal/stressor"
 	"github.com/rnemeth90/yahba/internal/util"
+	"github.com/rnemeth90/yahba/internal/worker"
 	"github.com/spf13/pflag"
 )
 
@@ -37,12 +40,21 @@ func init() {
 	pflag.StringVar(&c.OutputFormat, "output-format", "raw", "Output format: json, yaml, or raw")
 	pflag.StringVar(&c.OutputFile, "out", "stdout", "File path to write results to; defaults to stdout. stdout, stderr, file")
 	pflag.StringVar(&c.FileName, "filename", "", "Specify a file name when --out is set to file file")
-	pflag.BoolVar(&c.Server, "server", false, "start a test server")
+	pflag.BoolVar(&c.Server, "server", false, "Start a test server")
 }
 
 func main() {
 	pflag.Parse()
 	c.Logger = logger.New(c.LogLevel, c.OutputFile, c.Silent, c.FileName)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	shutdown := make(chan os.Signal, 1)
+	signal.Notify(shutdown, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-shutdown
+		c.Logger.Info("Shutting down...")
+		cancel()
+	}()
 
 	if c.OutputFormat == "json" || c.OutputFormat == "yaml" {
 		c.Logger.Silent = true
@@ -50,15 +62,19 @@ func main() {
 
 	c.Logger.Debug("Starting YAHBA with parsed flags")
 
-	if err := run(c); err != nil {
+	if err := run(ctx, c); err != nil {
 		c.Logger.Error("Application encountered a critical error: %v", err)
 		os.Exit(1)
 	}
+
+	// this obviously isn't actually doing anything yet
+	cleanup(c.Logger)
 }
 
-func run(c config.Config) error {
+func run(ctx context.Context, c config.Config) error {
 	if c.Server {
 		server.New()
+		return nil
 	}
 
 	c.Logger.Debug("Validating configuration")
@@ -80,35 +96,50 @@ func run(c config.Config) error {
 	}
 
 	c.Logger.Info("Creating %d jobs for requests to %s", c.Requests, c.URL)
-	jobs := make([]stressor.Job, c.Requests)
+	jobs := make([]worker.Job, c.Requests)
 	for i := 0; i < c.Requests; i++ {
-		jobs[i] = stressor.Job{Host: c.URL, Method: c.Method, Body: c.Body}
+		jobs[i] = worker.Job{Host: c.URL, Method: c.Method, Body: c.Body}
 	}
 
 	reportChan := make(chan report.Report, c.Requests)
 	c.Logger.Info("Starting worker pool with %d requests per second (RPS)", c.RPS)
-	go func() {
-		stressor.WorkerPool(c, jobs, reportChan)
-	}()
-	c.Logger.Info("Worker pool started successfully")
+	go worker.WorkerPool(ctx, c, jobs, reportChan)
 
-	c.Logger.Info("Will generate report in %s format", c.OutputFormat)
+	select {
+	case <-ctx.Done():
+		c.Logger.Info("Shutdown signal received. Cleaning up.")
+		return nil
+	case r := <-reportChan:
+		return generateReport(c, r)
+	}
+}
+
+func generateReport(c config.Config, r report.Report) error {
+	c.Logger.Info("Generating report in %s format", c.OutputFormat)
 	var reportOutput string
 	var err error
 	switch c.OutputFormat {
 	case "json":
-		reportOutput, err = report.ParseJSON(reportChan)
+		reportOutput, err = report.ParseJSON(r)
 	case "yaml":
-		reportOutput, err = report.ParseYAML(reportChan)
+		reportOutput, err = report.ParseYAML(r)
 	default:
-		reportOutput, err = report.ParseRaw(reportChan)
+		reportOutput, err = report.ParseRaw(r)
 	}
+
 	if err != nil {
 		c.Logger.Error("Error generating report: %v", err)
 		return err
 	}
-	c.Logger.Info("Report generated successfully")
 
+	c.Logger.Info("Report generated successfully")
 	fmt.Fprintln(c.Logger.Writer(), reportOutput)
 	return nil
+}
+
+func cleanup(logger *logger.Logger, channels ...chan any) {
+	for _, ch := range channels {
+		close(ch)
+	}
+	logger.Info("Cleanup complete")
 }

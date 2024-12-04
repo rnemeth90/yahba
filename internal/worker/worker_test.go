@@ -1,6 +1,7 @@
-package stressor
+package worker
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"sync"
@@ -19,6 +20,7 @@ func mockServer() *httptest.Server {
 		w.Write([]byte("Hello, World!"))
 	}))
 }
+
 func TestWorker(t *testing.T) {
 	// Create a mock server with a small delay
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -49,7 +51,7 @@ func TestWorker(t *testing.T) {
 
 	done := make(chan struct{})
 	go func() {
-		worker.work(wg)
+		worker.work(context.Background(), wg)
 		close(done)
 	}()
 
@@ -144,7 +146,7 @@ func TestWorkerTimeout(t *testing.T) {
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
 
-	go worker.work(wg)
+	go worker.work(context.Background(), wg)
 	wg.Wait()
 
 	result := <-resultChan
@@ -177,7 +179,7 @@ func TestWorkerPool(t *testing.T) {
 		jobs[i] = Job{Host: cfg.URL, Method: cfg.Method}
 	}
 
-	go WorkerPool(cfg, jobs, reportChan)
+	go WorkerPool(context.Background(), cfg, jobs, reportChan)
 	report := <-reportChan
 
 	if report.TotalRequests != cfg.Requests {

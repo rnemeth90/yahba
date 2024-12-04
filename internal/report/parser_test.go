@@ -61,11 +61,7 @@ func sampleReport() Report {
 }
 
 func TestParseRaw(t *testing.T) {
-	reportChan := make(chan Report, 1)
-	reportChan <- sampleReport()
-	close(reportChan)
-
-	output, err := ParseRaw(reportChan)
+	output, err := ParseRaw(sampleReport())
 	if err != nil {
 		t.Fatalf("unexpected error in ParseRaw: %v", err)
 	}
@@ -81,22 +77,12 @@ func TestParseRaw(t *testing.T) {
 	}
 }
 
-func TestParseRawChannelClosed(t *testing.T) {
-	reportChan := make(chan Report)
-	close(reportChan)
-
-	_, err := ParseRaw(reportChan)
-	if err == nil || !strings.Contains(err.Error(), "channel unexpectedly closed") {
-		t.Errorf("expected error for closed channel, got: %v", err)
-	}
-}
-
 func TestParseJSON(t *testing.T) {
 	reportChan := make(chan Report, 1)
 	reportChan <- sampleReport()
 	close(reportChan)
 
-	output, err := ParseJSON(reportChan)
+	output, err := ParseJSON(sampleReport())
 	if err != nil {
 		t.Fatalf("unexpected error in ParseJSON: %v", err)
 	}
@@ -117,22 +103,8 @@ func TestParseJSON(t *testing.T) {
 	}
 }
 
-func TestParseJSONChannelClosed(t *testing.T) {
-	reportChan := make(chan Report)
-	close(reportChan)
-
-	_, err := ParseJSON(reportChan)
-	if err == nil || !strings.Contains(err.Error(), "channel unexpectedly closed") {
-		t.Errorf("expected error for closed channel, got: %v", err)
-	}
-}
-
 func TestParseYAML(t *testing.T) {
-	reportChan := make(chan Report, 1)
-	reportChan <- sampleReport()
-	close(reportChan)
-
-	output, err := ParseYAML(reportChan)
+	output, err := ParseYAML(sampleReport())
 	if err != nil {
 		t.Fatalf("unexpected error in ParseYAML: %v", err)
 	}
@@ -150,15 +122,5 @@ func TestParseYAML(t *testing.T) {
 	}
 	if parsedReport.StatusCodes.Num200 != 90 {
 		t.Errorf("expected StatusCodes.Num200 90, got %d", parsedReport.StatusCodes.Num200)
-	}
-}
-
-func TestParseYAMLChannelClosed(t *testing.T) {
-	reportChan := make(chan Report)
-	close(reportChan)
-
-	_, err := ParseYAML(reportChan)
-	if err == nil || !strings.Contains(err.Error(), "channel unexpectedly closed") {
-		t.Errorf("expected error for closed channel, got: %v", err)
 	}
 }

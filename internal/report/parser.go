@@ -2,7 +2,6 @@ package report
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strings"
 
@@ -10,12 +9,7 @@ import (
 )
 
 // ParseRaw generates a raw-text summary of the report
-func ParseRaw(reportChan chan Report) (string, error) {
-	report, ok := <-reportChan
-	if !ok {
-		return "", errors.New("channel unexpectedly closed")
-	}
-
+func ParseRaw(report Report) (string, error) {
 	var builder strings.Builder
 
 	builder.WriteString("\n")
@@ -55,22 +49,11 @@ func ParseRaw(reportChan chan Report) (string, error) {
 	builder.WriteString(fmt.Sprintf("  Client Errors:          %d\n", report.ErrorBreakdown.ClientErrors))
 	builder.WriteString("\n")
 
-	// bug - this is so ugly... need to fix
-	// builder.WriteString("Individual Request Results:\n")
-	// for _, r := range report.Results {
-	// 	builder.WriteString(fmt.Sprintf("  Worker %d | Status: %d | Time: %s | URL: %s | Timeout: %t", r.WorkerID, r.ResultCode, r.ElapsedTime, r.TargetURL, r.Timeout))
-	// }
-	//
 	return builder.String(), nil
 }
 
-func ParseJSON(report chan Report) (string, error) {
-	result, ok := <-report
-	if !ok {
-		return "", errors.New("channel unexpectedly closed...")
-	}
-
-	jsonStr, err := json.MarshalIndent(result, "", "  ")
+func ParseJSON(report Report) (string, error) {
+	jsonStr, err := json.MarshalIndent(report, "", "  ")
 	if err != nil {
 		return "", err
 	}
@@ -78,13 +61,8 @@ func ParseJSON(report chan Report) (string, error) {
 	return string(jsonStr), nil
 }
 
-func ParseYAML(report chan Report) (string, error) {
-	result, ok := <-report
-	if !ok {
-		return "", errors.New("channel unexpectedly closed...")
-	}
-
-	yamlStr, err := yaml.Marshal(result)
+func ParseYAML(report Report) (string, error) {
+	yamlStr, err := yaml.Marshal(report)
 	if err != nil {
 		return "", err
 	}

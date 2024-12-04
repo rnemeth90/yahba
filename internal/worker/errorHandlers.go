@@ -1,4 +1,4 @@
-package stressor
+package worker
 
 import (
 	"net/http"
@@ -13,6 +13,7 @@ func (w *Worker) handleClientError(job Job, result report.Result, resp *http.Res
 		w.Config.Logger.Warn("Worker %d: Request to %s timed out", w.ID, job.Host)
 		result.Timeout = true
 		result.ResultCode = http.StatusRequestTimeout
+		// urlErr.Unwrap()
 	} else {
 		w.Config.Logger.Error("Worker %d: Request to %s failed: %v", w.ID, job.Host, err)
 	}

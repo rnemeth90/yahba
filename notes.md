@@ -22,7 +22,7 @@ verbose (logging package)
 output
 
 todo:
-[ ] no colors... (some environments obviously will not support ANSI colors, leading to problems when reading output)
+[x] no colors... (some environments obviously will not support ANSI colors, leading to problems when reading output)
 [ ] graceful shutdown
 [ ] refine usage()
 [ ] improve report formatting
