@@ -17,6 +17,7 @@ import (
 )
 
 var c config.Config
+var help bool
 
 func init() {
 	pflag.StringVarP(&c.URL, "url", "u", "", "The target URL to stress test. This should include the protocol (e.g., http:// or https://)")
@@ -41,11 +42,57 @@ func init() {
 	pflag.StringVar(&c.OutputFile, "out", "stdout", "File path to write results to; defaults to stdout. stdout, stderr, file")
 	pflag.StringVar(&c.FileName, "filename", "", "Specify a file name when --out is set to file file")
 	pflag.BoolVar(&c.Server, "server", false, "Start a test server")
+	pflag.BoolVarP(&help, "help", "h", false, "help")
+	pflag.Usage = usage
+}
+
+func usage() {
+	fmt.Fprintf(os.Stderr, `Usage of %s:
+A high-performance HTTP load testing tool.
+
+Options:
+`, os.Args[0])
+
+	// Print all the defined flags and their default values
+	pflag.PrintDefaults()
+
+	fmt.Fprintf(os.Stderr, `
+Examples:
+  Basic Usage:
+    %s --url=http://example.com --requests=100 --rps=10
+
+  Test with Custom Headers:
+    %s --url=https://example.com --headers="Authorization:Bearer abc123,Content-Type:application/json"
+
+  Test with POST Method and Payload:
+    %s --url=https://api.example.com --method=POST --body='{"key":"value"}' --headers="Content-Type:application/json"
+
+  Disable SSL/TLS Verification:
+    %s --url=https://example.com --insecure
+
+  Use a Proxy:
+    %s --url=http://example.com --proxy="http://proxy.example.com:8080" --proxy-user="user" --proxy-password="pass"
+
+  Test with Keep-Alive and HTTP/2 Disabled:
+    %s --url=https://example.com --keep-alive --http2=false
+
+  Specify Custom DNS Resolver:
+    %s --url=http://example.com --resolver="1.1.1.1:53"
+
+  Generate JSON Output:
+    %s --url=http://example.com --output-format=json > result.json
+
+`, os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0])
 }
 
 func main() {
 	pflag.Parse()
 	c.Logger = logger.New(c.LogLevel, c.OutputFile, c.Silent, c.FileName)
+
+	if help {
+		usage()
+		os.Exit(0)
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	shutdown := make(chan os.Signal, 1)
