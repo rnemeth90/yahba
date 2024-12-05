@@ -12,6 +12,7 @@ import (
 	"github.com/rnemeth90/yahba/internal/client"
 	"github.com/rnemeth90/yahba/internal/config"
 	"github.com/rnemeth90/yahba/internal/report"
+	"github.com/rnemeth90/yahba/internal/util"
 )
 
 type Worker struct {
@@ -66,6 +67,11 @@ func (w *Worker) processJob(job Job) {
 		return
 	}
 
+	reqSize, err := util.CalculateRawRequestSize(req)
+	if err != nil {
+		w.Config.Logger.Error("failed to obtain request size: %v", err)
+	}
+
 	w.setHeaders(req)
 	w.setProtocol(req)
 
@@ -79,7 +85,7 @@ func (w *Worker) processJob(job Job) {
 	}
 
 	defer resp.Body.Close()
-	w.processResponse(result, resp, start, job)
+	w.processResponse(result, resp, start, job, reqSize)
 }
 
 // Worker pool for managing concurrency
@@ -183,11 +189,14 @@ func (w *Worker) setHeaders(req *http.Request) {
 	w.Config.Logger.Debug("Worker %d: Request headers set: %v", w.ID, req.Header)
 }
 
-// Set protocol for the HTTP request
+// Set protocol for the HTTP request.
+// todo: Update to support HTTP3
 func (w *Worker) setProtocol(req *http.Request) {
 	if !w.Config.HTTP2 {
 		req.Proto = "HTTP/1.1"
 		w.Config.Logger.Debug("Worker %d: Using HTTP/1.1 for request to %s", w.ID, req.URL.Host)
+	} else {
+		w.Config.Logger.Debug("Worker %d: Using HTTP2 for request to %s", w.ID, req.URL.Host)
 	}
 }
 
@@ -202,7 +211,7 @@ func (w *Worker) initializeResult(job Job, start time.Time) report.Result {
 }
 
 // Process the HTTP response
-func (w *Worker) processResponse(result report.Result, resp *http.Response, start time.Time, job Job) {
+func (w *Worker) processResponse(result report.Result, resp *http.Response, start time.Time, job Job, bytesSent int) {
 	if resp == nil {
 		w.Config.Logger.Error("Worker %d: No response received for %s", w.ID, job.Host)
 		result.Error = fmt.Errorf("no response received")
@@ -223,6 +232,7 @@ func (w *Worker) processResponse(result report.Result, resp *http.Response, star
 	}
 
 	result.BytesReceived = len(bytesReceived)
+	result.BytesSent = bytesSent
 	w.Config.Logger.Debug("Worker %d: Received %d bytes from %s", w.ID, result.BytesReceived, job.Host)
 
 	result.EndTime = time.Now()

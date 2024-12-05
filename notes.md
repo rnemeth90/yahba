@@ -33,7 +33,9 @@ todo:
 
 [ ] advanced metrics (throughput over time, concurrency breakdowns, per-worker statistics)
 [ ] progress bar?
+
 [ ] test server
+[ ] server.New() should return an error
 
 [ ] http3 support
 [ ] plugin system for extensibility? (custom report formats, etc.)

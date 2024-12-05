@@ -14,13 +14,19 @@ func ParseRaw(report Report) (string, error) {
 
 	builder.WriteString("\n")
 	builder.WriteString("\n")
-	builder.WriteString("YAHBA Stress Test Report\n")
-	builder.WriteString("========================\n\n")
-	builder.WriteString(fmt.Sprintf("Total Requests:      %d\n", report.TotalRequests))
-	builder.WriteString(fmt.Sprintf("Successes:           %d\n", report.Successes))
-	builder.WriteString(fmt.Sprintf("Failures:            %d\n\n", report.Failures))
+	builder.WriteString("==========================\n\n")
+	builder.WriteString(" YAHBA Stress Test Report \n")
+	builder.WriteString("==========================\n\n")
+	successRate := float64(report.Successes) / float64(report.TotalRequests) * 100
+	failureRate := float64(report.Failures) / float64(report.TotalRequests) * 100
+	builder.WriteString(fmt.Sprintf("Total Requests:       %d\n", report.TotalRequests))
+	builder.WriteString(fmt.Sprintf("Successes:            %d (%.2f%%)\n", report.Successes, successRate))
+	builder.WriteString(fmt.Sprintf("Failures:             %d (%.2f%%)\n\n", report.Failures, failureRate))
+	builder.WriteString(fmt.Sprintf("Test Start Time:      %s\n", report.StartTime))
+	builder.WriteString(fmt.Sprintf("Test End Time:        %s\n", report.EndTime))
+	builder.WriteString(fmt.Sprintf("Test Duration:        %s\n\n", report.Duration))
 
-	builder.WriteString("Latency:\n")
+	builder.WriteString("Latency Metrics:\n")
 	builder.WriteString(fmt.Sprintf("  Min: %s\n", report.Latency.Min))
 	builder.WriteString(fmt.Sprintf("  Max: %s\n", report.Latency.Max))
 	builder.WriteString(fmt.Sprintf("  Avg: %s\n", report.Latency.Avg))

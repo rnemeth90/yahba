@@ -1,0 +1,41 @@
+package util
+
+import (
+	"bytes"
+	"fmt"
+	"io"
+	"net/http"
+)
+
+// Calculate the length of a raw HTTP request
+func CalculateRawRequestSize(req *http.Request) (int, error) {
+	// add the request line
+	requestLine := fmt.Sprintf("%s %s %s\r\n", req.Method, req.URL.RequestURI(), req.Proto)
+	size := len(requestLine)
+
+	// add the headers
+	for name, values := range req.Header {
+		for _, value := range values {
+			headerLine := fmt.Sprintf("%s: %s\r\n", name, value)
+			size += len(headerLine)
+		}
+	}
+
+	// add an extra CRLF after the headers (end of the header section)
+	size += 2
+
+	// add the body size
+	if req.Body != nil {
+		bodyBuffer := new(bytes.Buffer)
+		_, err := bodyBuffer.ReadFrom(req.Body)
+		if err != nil {
+			return 0, err
+		}
+		size += bodyBuffer.Len()
+
+		// reassign the body in case it is read again later
+		req.Body = io.NopCloser(bodyBuffer)
+	}
+
+	return size, nil
+}

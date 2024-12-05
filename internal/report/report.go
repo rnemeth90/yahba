@@ -15,6 +15,9 @@ type Report struct {
 	TotalRequests  int            `json:"total_requests"`
 	Successes      int            `json:"success"`
 	Failures       int            `json:"failures"`
+	StartTime      string         `json:"start_time"`
+	EndTime        string         `json:"end_time"`
+	Duration       time.Duration  `json:"duration"`
 }
 
 type Result struct {
