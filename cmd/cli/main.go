@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/rnemeth90/yahba/internal/config"
 	"github.com/rnemeth90/yahba/internal/logger"
@@ -129,8 +130,8 @@ func run(ctx context.Context, c config.Config) error {
 		c.Logger.Error("Configuration validation failed: %v", err)
 		return err
 	}
-
 	c.Logger.Info("Configuration validated successfully")
+
 	if c.Headers != "" {
 		c.Logger.Debug("Parsing headers: %s", c.Headers)
 		parsedHeaders, err := util.ParseHeaders(c.Headers)
@@ -150,6 +151,7 @@ func run(ctx context.Context, c config.Config) error {
 
 	reportChan := make(chan report.Report, c.Requests)
 	c.Logger.Info("Starting worker pool with %d requests per second (RPS)", c.RPS)
+	startTime := time.Now().Format("Mon, 02 Jan 2006 15:04:05 MST")
 	go worker.WorkerPool(ctx, c, jobs, reportChan)
 
 	select {
@@ -157,14 +159,24 @@ func run(ctx context.Context, c config.Config) error {
 		c.Logger.Info("Shutdown signal received. Cleaning up.")
 		return nil
 	case r := <-reportChan:
+		r.StartTime = startTime
+		r.EndTime = time.Now().Format("Mon, 02 Jan 2006 15:04:05 MST")
+		parsedStartTime, err := time.Parse("Mon, 02 Jan 2006 15:04:05 MST", startTime)
+		if err != nil {
+			return err
+		}
+		r.Duration = time.Since(parsedStartTime)
+
 		return generateReport(c, r)
 	}
 }
 
 func generateReport(c config.Config, r report.Report) error {
 	c.Logger.Info("Generating report in %s format", c.OutputFormat)
+
 	var reportOutput string
 	var err error
+
 	switch c.OutputFormat {
 	case "json":
 		reportOutput, err = report.ParseJSON(r)
