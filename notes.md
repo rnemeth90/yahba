@@ -25,7 +25,7 @@ todo:
 [x] no colors... (some environments obviously will not support ANSI colors, leading to problems when reading output)
 [x] graceful shutdown
 [x] refine usage()
-[ ] improve report formatting
+[x] improve report formatting
 [ ] Refactor workerpool() into smaller functions
 [ ] add docs
 [ ] remove commented code
