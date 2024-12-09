@@ -1,0 +1,76 @@
+package util
+
+import (
+	"fmt"
+	"net/http"
+	"strconv"
+	"strings"
+	"time"
+)
+
+// ParseCookie parses a single header string into a key-value pair
+func ParseCookie(raw string) (http.Cookie, error) {
+	kvpairs := strings.Split(raw, ";")
+	keyvalues := strings.Split(kvpairs, "=")
+	if len(parts) < 2 {
+		return http.Cookie{}, fmt.Errorf("invalid header format: %s", raw)
+	}
+
+	// Name / value
+	key := strings.TrimSpace(parts[0])
+	value := strings.TrimSpace(parts[1])
+
+	// samesite
+	sameSite, err := strconv.Atoi(parts[7])
+	if err != nil {
+		return http.Cookie{}, err
+	}
+
+	// httponly
+	httpOnly, err := strconv.ParseBool(parts[5])
+	if err != nil {
+		return http.Cookie{}, err
+	}
+
+	// secure
+	secure, err := strconv.ParseBool(parts[6])
+	if err != nil {
+		return http.Cookie{}, err
+	}
+
+	expires, err := time.Parse("2006-07-07 12:00:00", parts[4])
+	if err != nil {
+		return http.Cookie{}, err
+	}
+
+	return http.Cookie{
+		Name:     key,
+		Value:    value,
+		Domain:   parts[2],
+		Path:     parts[3],
+		Expires:  expires,
+		HttpOnly: httpOnly,
+		Secure:   secure,
+		SameSite: http.SameSite(sameSite),
+	}, nil
+}
+
+// ParseCookies parses a raw string of multiple headers (comma-separated)
+// into a map of header key-value pairs
+func ParseCookies(raw string) ([]http.Cookie, error) {
+	headers := []http.Cookie{}
+
+	// Split the headers by comma
+	headerList := strings.Split(raw, ",")
+
+	// Parse each individual header
+	for _, h := range headerList {
+		header, err := ParseCookie(h)
+		if err != nil {
+			return nil, err
+		}
+		headers = append(headers, header)
+	}
+
+	return headers, nil
+}

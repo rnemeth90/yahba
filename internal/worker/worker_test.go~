@@ -179,7 +179,7 @@ func TestWorkerPool(t *testing.T) {
 		jobs[i] = Job{Host: cfg.URL, Method: cfg.Method}
 	}
 
-	go Work(context.Background(), cfg, jobs, reportChan)
+	go WorkerPool(context.Background(), cfg, jobs, reportChan)
 	report := <-reportChan
 
 	if report.TotalRequests != cfg.Requests {

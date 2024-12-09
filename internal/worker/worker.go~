@@ -90,17 +90,20 @@ func (w *Worker) processJob(job Job) {
 
 // Worker pool for managing concurrency
 func Work(ctx context.Context, cfg config.Config, jobs []Job, reportChan chan<- report.Report) {
+	// creating a client
 	client, err := client.NewClient(cfg)
 	if err != nil {
 		cfg.Logger.Error("Error creating HTTP client: %v", err)
 		return
 	}
 
+	// create channels
 	jobChan := make(chan Job, len(jobs))
 	resultChan := make(chan report.Result, len(jobs))
 
 	wg := &sync.WaitGroup{}
 
+	// starting the worker pool
 	cfg.Logger.Info("Starting worker pool with %d workers", cfg.RPS)
 	for i := 0; i < cfg.RPS; i++ {
 		worker := newWorker(i, jobChan, resultChan, client, cfg)
@@ -108,6 +111,7 @@ func Work(ctx context.Context, cfg config.Config, jobs []Job, reportChan chan<- 
 		go worker.watch(ctx, wg)
 	}
 
+	// monitoring channels and handling
 	go func() {
 		defer close(jobChan)
 		ticker := time.NewTicker(time.Second / time.Duration(cfg.RPS))
@@ -128,6 +132,7 @@ func Work(ctx context.Context, cfg config.Config, jobs []Job, reportChan chan<- 
 		close(resultChan)
 	}()
 
+	// create report
 	cfg.Logger.Info("Aggregating results into report")
 	report := processResults(cfg, resultChan)
 

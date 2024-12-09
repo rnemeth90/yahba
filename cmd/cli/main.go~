@@ -152,7 +152,7 @@ func run(ctx context.Context, c config.Config) error {
 	reportChan := make(chan report.Report, c.Requests)
 	c.Logger.Info("Starting worker pool with %d requests per second (RPS)", c.RPS)
 	startTime := time.Now().Format("Mon, 02 Jan 2006 15:04:05 MST")
-	go worker.Work(ctx, c, jobs, reportChan)
+	go worker.WorkerPool(ctx, c, jobs, reportChan)
 
 	select {
 	case <-ctx.Done():
