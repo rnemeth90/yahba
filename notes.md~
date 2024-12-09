@@ -26,7 +26,7 @@ todo:
 [x] graceful shutdown
 [x] refine usage()
 [x] improve report formatting
-[ ] Refactor workerpool() into smaller functions
+[x] Refactor workerpool() into smaller functions
 [ ] add docs
 [ ] remove commented code
 [ ] implement consistent timeouts (httpclient, resolvers, etc.)

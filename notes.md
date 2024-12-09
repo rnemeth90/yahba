@@ -27,7 +27,7 @@ todo:
 [x] refine usage()
 [x] improve report formatting
 [x] Refactor workerpool() into smaller functions
-[ ] add docs
+[x] add docs
 [ ] remove commented code
 [ ] implement consistent timeouts (httpclient, resolvers, etc.)
 
