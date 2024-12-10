@@ -29,7 +29,7 @@ todo:
 [x] Refactor workerpool() into smaller functions
 [x] add docs
 [ ] remove commented code
-[ ] implement consistent timeouts (httpclient, resolvers, etc.)
+[x] implement consistent timeouts (httpclient, resolvers, etc.)
 
 [ ] advanced metrics (throughput over time, concurrency breakdowns, per-worker statistics)
 [ ] progress bar?

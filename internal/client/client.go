@@ -68,7 +68,7 @@ func NewClient(cfg config.Config) (*http.Client, error) {
 					Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
 						cfg.Logger.Debug("Using custom resolver for address: %s", address)
 						d := net.Dialer{
-							Timeout: 500 * time.Millisecond,
+							Timeout: time.Duration(cfg.Timeout),
 						}
 
 						return d.DialContext(ctx, "udp", cfg.Resolver)
@@ -87,7 +87,7 @@ func NewClient(cfg config.Config) (*http.Client, error) {
 
 	client := &http.Client{
 		Transport: t,
-		Timeout:   time.Second * time.Duration(cfg.Timeout),
+		Timeout:   time.Duration(cfg.Timeout),
 	}
 	cfg.Logger.Debug("HTTP client successfully initialized with timeout: %d seconds", cfg.Timeout)
 
