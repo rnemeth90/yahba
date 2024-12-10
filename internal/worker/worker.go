@@ -83,9 +83,10 @@ func (w *Worker) processJob(job Job) {
 		w.handleClientError(job, result, resp, err, start)
 		return
 	}
+	end := time.Now()
 
 	defer resp.Body.Close()
-	w.processResponse(result, resp, start, job, reqSize)
+	w.processResponse(result, resp, start, end, job, reqSize)
 }
 
 // Worker pool for managing concurrency
@@ -211,11 +212,11 @@ func (w *Worker) initializeResult(job Job, start time.Time) report.Result {
 }
 
 // Process the HTTP response
-func (w *Worker) processResponse(result report.Result, resp *http.Response, start time.Time, job Job, bytesSent int) {
+func (w *Worker) processResponse(result report.Result, resp *http.Response, start time.Time, end time.Time, job Job, bytesSent int) {
 	if resp == nil {
 		w.Config.Logger.Error("Worker %d: No response received for %s", w.ID, job.Host)
 		result.Error = fmt.Errorf("no response received")
-		result.EndTime = time.Now()
+		result.EndTime = end
 		result.ElapsedTime = result.EndTime.Sub(start)
 		w.Results <- result
 		return
@@ -235,7 +236,7 @@ func (w *Worker) processResponse(result report.Result, resp *http.Response, star
 	result.BytesSent = bytesSent
 	w.Config.Logger.Debug("Worker %d: Received %d bytes from %s", w.ID, result.BytesReceived, job.Host)
 
-	result.EndTime = time.Now()
+	result.EndTime = end
 	result.ElapsedTime = result.EndTime.Sub(start)
 	result.ResultCode = resp.StatusCode
 

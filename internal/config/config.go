@@ -41,6 +41,7 @@ type Config struct {
 
 var validHTTPMethods = []string{"GET", "HEAD", "PUT", "POST"}
 
+// This monstrosity validates your config :)
 func (config *Config) Validate() error {
 	if config.URL == "" {
 		return ErrMissingHost
