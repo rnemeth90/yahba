@@ -7,7 +7,7 @@ import (
 )
 
 type Report struct {
-	Results        []Result       `json:"reports"`
+	Results        []Result       `json:"results"`
 	ErrorBreakdown ErrorBreakdown `json:"error_breakdown"`
 	Latency        Latency        `json:"latency"`
 	Throughput     Throughput     `json:"throughput"`

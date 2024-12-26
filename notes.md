@@ -10,13 +10,11 @@
 - [x] **Added Documentation**: Comprehensive documentation added for the project.
 - [x] **Consistent Timeouts**: Implemented uniform timeouts for HTTP clients, resolvers, etc.
 
-#### Pending Tasks
-
-- [ ] **Remove Commented Code**: Clean up any unused or commented-out code.
+#### In Progress
 - [ ] **Advanced Metrics**:
   - Throughput over time
     - Measure the amount of data sent to the endpoint over a time period (i.e. bytes/second)
-      - [ ] Track the time taken for each request
+      - [x] Track the time taken for each request
       - [ ] Track the total bytes sent per request
       - [ ] Aggregate the data. Create a new struct?
         - [ ] Starttime
@@ -28,6 +26,11 @@
   - Concurrency breakdowns
   - Per-worker statistics
     - What can we gather per worker?
+
+
+#### Pending Tasks
+
+- [ ] **Remove Commented Code**: Clean up any unused or commented-out code.
 - [ ] **Progress Bar**: Add a progress bar for visual feedback.
 - [ ] **Test Server**: Build a test server for simulations.
 - [ ] **Improve `server.New()`**: Ensure it returns an error when needed.
