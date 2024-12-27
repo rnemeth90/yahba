@@ -17,10 +17,11 @@
       - [x] Track the time taken for each request
       - [x] Track the total bytes sent per request
       - [ ] Aggregate the data. Create a new struct?
-        - [ ] Starttime
-        - [ ] endtime
-        - [ ] # requests
-        - [ ] bytes per request or total bytes
+        - [x] Starttime
+        - [x] endtime
+        - [x] duration
+        - [x] # requests
+        - [x] bytes per request or total bytes
       - [ ] calculate bytes per second
       - [ ] report on the results (averages, max, min across intervals for summary metrics)
   - Concurrency breakdowns
