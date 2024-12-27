@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/rnemeth90/yahba/internal/config"
+	"golang.org/x/net/http2"
 )
 
 func NewClient(cfg config.Config) (*http.Client, error) {
@@ -31,11 +32,21 @@ func NewClient(cfg config.Config) (*http.Client, error) {
 			proxyURL.User = url.UserPassword(cfg.ProxyUser, cfg.ProxyPassword)
 		}
 	}
+	var t = http.Transport{}
 
-	t := &http.Transport{
-		DisableKeepAlives:  cfg.KeepAlive,
-		DisableCompression: cfg.Compression,
-		TLSClientConfig:    &tls.Config{InsecureSkipVerify: cfg.Insecure},
+	if cfg.HTTP2 {
+		t = http2.Transport{
+			DisableKeepAlives:    cfg.KeepAlive,
+			t.DisableCompression: cfg.Compression,
+			TLSClientConfig:      &tls.Config{InsecureSkipVerify: cfg.Insecure},
+		}
+	} else {
+		t = http.Transport{
+			DisableKeepAlives:  cfg.KeepAlive,
+			DisableCompression: cfg.Compression,
+			ForceAttemptHTTP2:  false,
+			TLSClientConfig:    &tls.Config{InsecureSkipVerify: cfg.Insecure},
+		}
 	}
 
 	if cfg.Insecure {
@@ -68,7 +79,7 @@ func NewClient(cfg config.Config) (*http.Client, error) {
 					Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
 						cfg.Logger.Debug("Using custom resolver for address: %s", address)
 						d := net.Dialer{
-							Timeout: time.Duration(cfg.Timeout),
+							Timeout: time.Duration(cfg.Timeout) * time.Second,
 						}
 
 						return d.DialContext(ctx, "udp", cfg.Resolver)
@@ -87,7 +98,7 @@ func NewClient(cfg config.Config) (*http.Client, error) {
 
 	client := &http.Client{
 		Transport: t,
-		Timeout:   time.Duration(cfg.Timeout),
+		Timeout:   time.Duration(cfg.Timeout) * time.Second,
 	}
 	cfg.Logger.Debug("HTTP client successfully initialized with timeout: %d seconds", cfg.Timeout)
 

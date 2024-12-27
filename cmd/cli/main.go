@@ -32,7 +32,7 @@ func init() {
 	pflag.StringVar(&c.Resolver, "resolver", "", "A custom DNS resolver to use, specified as 'IP:Port'")
 	pflag.StringVarP(&c.Proxy, "proxy", "P", "", "The proxy server to route requests through, specified as 'IP:Port'")
 	pflag.BoolVarP(&c.KeepAlive, "keep-alive", "k", false, "Enable HTTP keep-alive, allowing TCP connections to remain open for multiple requests")
-	pflag.BoolVar(&c.HTTP2, "http2", true, "Enable HTTP/2 support for requests (default: true)")
+	pflag.BoolVar(&c.HTTP2, "http2", false, "Enable HTTP/2 support for requests (default: false)")
 	pflag.StringVarP(&c.LogLevel, "log-level", "l", "error", "The logging level to use (options: debug, info, warn, error)")
 	pflag.BoolVar(&c.Compression, "compression", false, "Enable HTTP compression for requests (e.g., gzip)")
 	pflag.StringVar(&c.ProxyUser, "proxy-user", "", "Username for proxy authentication")

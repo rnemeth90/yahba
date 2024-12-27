@@ -73,7 +73,6 @@ func (w *Worker) processJob(job Job) {
 	}
 
 	w.setHeaders(req)
-	w.setProtocol(req)
 
 	start := time.Now()
 	result := w.initializeResult(job, start)
@@ -188,17 +187,6 @@ func (w *Worker) setHeaders(req *http.Request) {
 		req.Header.Add(h.Key, h.Value)
 	}
 	w.Config.Logger.Debug("Worker %d: Request headers set: %v", w.ID, req.Header)
-}
-
-// Set protocol for the HTTP request.
-// todo: Update to support HTTP3
-func (w *Worker) setProtocol(req *http.Request) {
-	if !w.Config.HTTP2 {
-		req.Proto = "HTTP/1.1"
-		w.Config.Logger.Debug("Worker %d: Using HTTP/1.1 for request to %s", w.ID, req.URL.Host)
-	} else {
-		w.Config.Logger.Debug("Worker %d: Using HTTP2 for request to %s", w.ID, req.URL.Host)
-	}
 }
 
 // Initialize the result object

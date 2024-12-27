@@ -15,7 +15,7 @@
   - Throughput over time
     - Measure the amount of data sent to the endpoint over a time period (i.e. bytes/second)
       - [x] Track the time taken for each request
-      - [ ] Track the total bytes sent per request
+      - [x] Track the total bytes sent per request
       - [ ] Aggregate the data. Create a new struct?
         - [ ] Starttime
         - [ ] endtime
