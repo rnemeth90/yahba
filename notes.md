@@ -16,7 +16,7 @@
     - Measure the amount of data sent to the endpoint over a time period (i.e. bytes/second)
       - [x] Track the time taken for each request
       - [x] Track the total bytes sent per request
-      - [ ] Aggregate the data. Create a new struct?
+      - [x] Aggregate the data. Create a new struct?
         - [x] Starttime
         - [x] endtime
         - [x] duration

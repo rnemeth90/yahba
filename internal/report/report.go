@@ -49,9 +49,10 @@ type Latency struct {
 }
 
 type Throughput struct {
-	TotalBytesSent     int `json:"total_bytes_sent"`
-	TotalBytesReceived int `json:"total_bytes_received"`
-	BytesPerSecond     int `json:"bytes_per_second"`
+	TotalBytesSent         int     `json:"total_bytes_sent"`
+	TotalBytesReceived     int     `json:"total_bytes_received"`
+	BytesSentPerSecond     float64 `json:"bytes_sent_per_second"`
+	BytesReceivedPerSecond float64 `json:"bytes_received_per_second"`
 }
 
 type StatusCodes struct {
