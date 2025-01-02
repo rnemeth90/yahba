@@ -19,6 +19,7 @@ func NewClient(cfg config.Config) (*http.Client, error) {
 	var proxyURL *url.URL
 	var err error
 
+	// proxy
 	if cfg.Proxy != "" {
 		cfg.Logger.Debug("Configuring proxy: %s", cfg.Proxy)
 		proxyURL, err = url.Parse(cfg.Proxy)
@@ -34,7 +35,6 @@ func NewClient(cfg config.Config) (*http.Client, error) {
 	}
 
 	var transport http.RoundTripper
-
 	if cfg.HTTP2 {
 		transport = &http2.Transport{
 			DisableCompression: cfg.Compression,
@@ -49,6 +49,7 @@ func NewClient(cfg config.Config) (*http.Client, error) {
 			Proxy:              http.ProxyURL(proxyURL),
 		}
 
+		// skipping DNS resolution only works with HTTP 1.1, not HTTP 2.0
 		if cfg.SkipDNS {
 			cfg.Logger.Debug("Configuring DNS skipping for host: %s", cfg.URL)
 			tr.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
@@ -73,7 +74,7 @@ func NewClient(cfg config.Config) (*http.Client, error) {
 					Resolver: &net.Resolver{
 						PreferGo: true,
 						Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
-							cfg.Logger.Debug("Using custom resolver for address: %s", address)
+							cfg.Logger.Debug("Using custom resolver %s to resolve: %s", cfg.Resolver, cfg.URL)
 							d := net.Dialer{
 								Timeout: time.Duration(cfg.Timeout) * time.Second,
 							}

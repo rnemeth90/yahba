@@ -51,6 +51,11 @@ func (config *Config) Validate() error {
 		return ErrInvalidLogFilePath
 	}
 
+	ipAddy := net.ParseIP(config.URL)
+	if config.SkipDNS && ipAddy == nil {
+		return ErrInvalidIPAddressForHost
+	}
+
 	if !strings.HasPrefix(config.URL, "http") {
 		return ErrInvalidProtocolScheme
 	}

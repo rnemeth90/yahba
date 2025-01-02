@@ -38,7 +38,7 @@ func init() {
 	pflag.StringVar(&c.ProxyUser, "proxy-user", "", "Username for proxy authentication")
 	pflag.StringVar(&c.ProxyPassword, "proxy-password", "", "Password for proxy authentication")
 	pflag.IntVarP(&c.Sleep, "sleep", "s", 1, "Sleep time in seconds between requests in a single worker (throttles requests)")
-	pflag.BoolVar(&c.SkipDNS, "skip-dns", false, "If set, skips DNS resolution and uses a direct IP address")
+	pflag.BoolVar(&c.SkipDNS, "skip-dns", false, "If set, skips DNS resolution and uses a direct IP address. You must supply an IP address and not a hostname.")
 	pflag.StringVar(&c.OutputFormat, "output-format", "raw", "Output format: json, yaml, or raw")
 	pflag.StringVar(&c.OutputFile, "out", "stdout", "File path to write results to; defaults to stdout. stdout, stderr, file")
 	pflag.StringVar(&c.FileName, "filename", "", "Specify a file name when --out is set to file file")

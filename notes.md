@@ -31,6 +31,7 @@
 
 #### Pending Tasks
 
+- [ ] **Port**: Allow 'port' to be passed as a parameter
 - [ ] **Remove Commented Code**: Clean up any unused or commented-out code.
 - [ ] **Progress Bar**: Add a progress bar for visual feedback.
 - [ ] **Test Server**: Build a test server for simulations.
