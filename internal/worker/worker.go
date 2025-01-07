@@ -168,7 +168,10 @@ func processResults(cfg config.Config, resultChan <-chan report.Result) report.R
 	report.Throughput.TotalBytesReceived = totalBytesReceived
 	report.Throughput.BytesSentPerSecond = util.CalculateBytesPerSecond(float64(totalBytesSent), report.Duration.Seconds())
 	fmt.Println("report.Duration.Seconds(): ", report.Duration.Seconds())
+	fmt.Println("totalBytesSent: ", totalBytesSent)
 	fmt.Println("report.Throughput.BytesSentPerSecond: ", report.Throughput.BytesSentPerSecond)
+	fmt.Println("totalBytesReceived: ", totalBytesReceived)
+	fmt.Println("duration: ", report.Duration)
 	report.Throughput.BytesReceivedPerSecond = util.CalculateBytesPerSecond(float64(totalBytesReceived), report.Duration.Seconds())
 	fmt.Println("report.Throughput.BytesReceivedPerSecond: ", report.Throughput.BytesReceivedPerSecond)
 	report.ConvertResultCodes(resultCodes)
