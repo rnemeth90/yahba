@@ -141,12 +141,14 @@ func processResults(cfg config.Config, resultChan <-chan report.Result) report.R
 	report := report.Report{}
 	var totalRequests, totalBytesSent, totalBytesReceived int
 	resultCodes := make(map[int]int)
+	var duration time.Duration
 
 	for result := range resultChan {
 		resultCodes[result.ResultCode]++
 		totalRequests++
 		totalBytesSent += result.BytesSent
 		totalBytesReceived += result.BytesReceived
+		duration += result.ElapsedTime
 		report.Results = append(report.Results, result)
 
 		if result.ResultCode >= 400 && result.ResultCode <= 499 {
@@ -166,13 +168,13 @@ func processResults(cfg config.Config, resultChan <-chan report.Result) report.R
 	report.TotalRequests = totalRequests
 	report.Throughput.TotalBytesSent = totalBytesSent
 	report.Throughput.TotalBytesReceived = totalBytesReceived
-	report.Throughput.BytesSentPerSecond = util.CalculateBytesPerSecond(float64(totalBytesSent), report.Duration.Seconds())
-	fmt.Println("report.Duration.Seconds(): ", report.Duration.Seconds())
+	report.Throughput.BytesSentPerSecond = util.CalculateBytesPerSecond(float64(totalBytesSent), duration.Seconds())
+	fmt.Println("report.Duration.Seconds(): ", duration.Seconds())
 	fmt.Println("totalBytesSent: ", totalBytesSent)
 	fmt.Println("report.Throughput.BytesSentPerSecond: ", report.Throughput.BytesSentPerSecond)
 	fmt.Println("totalBytesReceived: ", totalBytesReceived)
-	fmt.Println("duration: ", report.Duration)
-	report.Throughput.BytesReceivedPerSecond = util.CalculateBytesPerSecond(float64(totalBytesReceived), report.Duration.Seconds())
+	fmt.Println("duration: ", duration)
+	report.Throughput.BytesReceivedPerSecond = util.CalculateBytesPerSecond(float64(totalBytesReceived), duration.Seconds())
 	fmt.Println("report.Throughput.BytesReceivedPerSecond: ", report.Throughput.BytesReceivedPerSecond)
 	report.ConvertResultCodes(resultCodes)
 	report.CalculateLatencyMetrics()
