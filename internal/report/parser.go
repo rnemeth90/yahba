@@ -19,6 +19,8 @@ func ParseRaw(report Report) (string, error) {
 	builder.WriteString("==========================\n\n")
 	successRate := float64(report.Successes) / float64(report.TotalRequests) * 100
 	failureRate := float64(report.Failures) / float64(report.TotalRequests) * 100
+	builder.WriteString(fmt.Sprintf("Host:                 %s\n", report.Host))
+	builder.WriteString(fmt.Sprintf("Method:               %s\n", report.Method))
 	builder.WriteString(fmt.Sprintf("Total Requests:       %d\n", report.TotalRequests))
 	builder.WriteString(fmt.Sprintf("Successes:            %d (%.2f%%)\n", report.Successes, successRate))
 	builder.WriteString(fmt.Sprintf("Failures:             %d (%.2f%%)\n\n", report.Failures, failureRate))

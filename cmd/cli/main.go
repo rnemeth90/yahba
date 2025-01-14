@@ -159,6 +159,8 @@ func run(ctx context.Context, c config.Config) error {
 		c.Logger.Info("Shutdown signal received. Cleaning up.")
 		return nil
 	case r := <-reportChan:
+		r.Host = c.URL
+		r.Method = c.Method
 		r.StartTime = startTime
 		r.EndTime = time.Now().Format("Mon, 02 Jan 2006 15:04:05 MST")
 		parsedStartTime, err := time.Parse("Mon, 02 Jan 2006 15:04:05 MST", startTime)

@@ -11,7 +11,7 @@
 - [x] **Consistent Timeouts**: Implemented uniform timeouts for HTTP clients, resolvers, etc.
 
 #### In Progress
-- [ ] **Advanced Metrics**:
+- [x] **Advanced Metrics**:
   - Throughput over time
     - Measure the amount of data sent to the endpoint over a time period (i.e. bytes/second)
       - [x] Track the time taken for each request
@@ -22,8 +22,8 @@
         - [x] duration
         - [x] # requests
         - [x] bytes per request or total bytes
-      - [ ] calculate bytes per second
-      - [ ] report on the results (averages, max, min across intervals for summary metrics)
+      - [x] calculate bytes per second
+      - [x] report on the results (averages, max, min across intervals for summary metrics)
   - Concurrency breakdowns
   - Per-worker statistics
     - What can we gather per worker?

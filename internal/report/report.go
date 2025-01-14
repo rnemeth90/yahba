@@ -7,6 +7,8 @@ import (
 )
 
 type Report struct {
+	Host           string         `json:"host"`
+	Method         string         `json:"method"`
 	Results        []Result       `json:"results"`
 	ErrorBreakdown ErrorBreakdown `json:"error_breakdown"`
 	Latency        Latency        `json:"latency"`
