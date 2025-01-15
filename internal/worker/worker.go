@@ -79,7 +79,8 @@ func (w *Worker) processJob(job Job) {
 
 	resp, err := w.Client.Do(req)
 	if err != nil {
-		w.handleClientError(job, result, resp, err, start)
+	  end := time.Now()
+		w.handleClientError(job, result, resp, err, start, end)
 		return
 	}
 	end := time.Now()

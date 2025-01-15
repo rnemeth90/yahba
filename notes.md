@@ -9,8 +9,6 @@
 - [x] **Refactored `workerpool()`**: Broke it into smaller, more manageable functions.
 - [x] **Added Documentation**: Comprehensive documentation added for the project.
 - [x] **Consistent Timeouts**: Implemented uniform timeouts for HTTP clients, resolvers, etc.
-
-#### In Progress
 - [x] **Advanced Metrics**:
   - Throughput over time
     - Measure the amount of data sent to the endpoint over a time period (i.e. bytes/second)
@@ -24,18 +22,16 @@
         - [x] bytes per request or total bytes
       - [x] calculate bytes per second
       - [x] report on the results (averages, max, min across intervals for summary metrics)
-  - Concurrency breakdowns
-  - Per-worker statistics
-    - What can we gather per worker?
 
+#### In Progress
+- [ ] **Improve `server.New()`**: Ensure it returns an error when needed.
+- [ ] **Switch to Cobra**: Use cobra over pflag
 
 #### Pending Tasks
 
-- [ ] **Port**: Allow 'port' to be passed as a parameter
 - [ ] **Remove Commented Code**: Clean up any unused or commented-out code.
 - [ ] **Progress Bar**: Add a progress bar for visual feedback.
 - [ ] **Test Server**: Build a test server for simulations.
-- [ ] **Improve `server.New()`**: Ensure it returns an error when needed.
 - [ ] **HTTP/3 Support**: Add support for HTTP/3.
 - [ ] **Plugin System**: Enable extensibility for custom report formats, etc.
 - [ ] **Rate Limiting Logic**: Implement logic for rate limiting (e.g., exponential backoffs for failed requests).
