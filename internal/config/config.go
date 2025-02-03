@@ -41,6 +41,7 @@ type Config struct {
 
 var validHTTPMethods = []string{"GET", "HEAD", "PUT", "POST"}
 
+// This monstrosity validates your config :)
 func (config *Config) Validate() error {
 	if config.URL == "" {
 		return ErrMissingHost
@@ -48,6 +49,11 @@ func (config *Config) Validate() error {
 
 	if config.OutputFormat == "file" && config.FileName == "" {
 		return ErrInvalidLogFilePath
+	}
+
+	ipAddy := net.ParseIP(config.URL)
+	if config.SkipDNS && ipAddy == nil {
+		return ErrInvalidIPAddressForHost
 	}
 
 	if !strings.HasPrefix(config.URL, "http") {

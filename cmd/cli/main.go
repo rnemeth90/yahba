@@ -32,13 +32,13 @@ func init() {
 	pflag.StringVar(&c.Resolver, "resolver", "", "A custom DNS resolver to use, specified as 'IP:Port'")
 	pflag.StringVarP(&c.Proxy, "proxy", "P", "", "The proxy server to route requests through, specified as 'IP:Port'")
 	pflag.BoolVarP(&c.KeepAlive, "keep-alive", "k", false, "Enable HTTP keep-alive, allowing TCP connections to remain open for multiple requests")
-	pflag.BoolVar(&c.HTTP2, "http2", true, "Enable HTTP/2 support for requests (default: true)")
+	pflag.BoolVar(&c.HTTP2, "http2", false, "Enable HTTP/2 support for requests (default: false)")
 	pflag.StringVarP(&c.LogLevel, "log-level", "l", "error", "The logging level to use (options: debug, info, warn, error)")
 	pflag.BoolVar(&c.Compression, "compression", false, "Enable HTTP compression for requests (e.g., gzip)")
 	pflag.StringVar(&c.ProxyUser, "proxy-user", "", "Username for proxy authentication")
 	pflag.StringVar(&c.ProxyPassword, "proxy-password", "", "Password for proxy authentication")
 	pflag.IntVarP(&c.Sleep, "sleep", "s", 1, "Sleep time in seconds between requests in a single worker (throttles requests)")
-	pflag.BoolVar(&c.SkipDNS, "skip-dns", false, "If set, skips DNS resolution and uses a direct IP address")
+	pflag.BoolVar(&c.SkipDNS, "skip-dns", false, "If set, skips DNS resolution and uses a direct IP address. You must supply an IP address and not a hostname.")
 	pflag.StringVar(&c.OutputFormat, "output-format", "raw", "Output format: json, yaml, or raw")
 	pflag.StringVar(&c.OutputFile, "out", "stdout", "File path to write results to; defaults to stdout. stdout, stderr, file")
 	pflag.StringVar(&c.FileName, "filename", "", "Specify a file name when --out is set to file file")
@@ -159,6 +159,8 @@ func run(ctx context.Context, c config.Config) error {
 		c.Logger.Info("Shutdown signal received. Cleaning up.")
 		return nil
 	case r := <-reportChan:
+		r.Host = c.URL
+		r.Method = c.Method
 		r.StartTime = startTime
 		r.EndTime = time.Now().Format("Mon, 02 Jan 2006 15:04:05 MST")
 		parsedStartTime, err := time.Parse("Mon, 02 Jan 2006 15:04:05 MST", startTime)

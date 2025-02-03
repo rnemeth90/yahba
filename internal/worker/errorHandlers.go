@@ -8,7 +8,7 @@ import (
 	"github.com/rnemeth90/yahba/internal/report"
 )
 
-func (w *Worker) handleClientError(job Job, result report.Result, resp *http.Response, err error, start time.Time) {
+func (w *Worker) handleClientError(job Job, result report.Result, resp *http.Response, err error, start time.Time, end time.Time) {
 	if urlErr, ok := err.(*url.Error); ok && urlErr.Timeout() {
 		w.Config.Logger.Warn("Worker %d: Request to %s timed out", w.ID, job.Host)
 		result.Timeout = true
@@ -19,7 +19,7 @@ func (w *Worker) handleClientError(job Job, result report.Result, resp *http.Res
 	}
 
 	result.Error = err
-	result.EndTime = time.Now()
+	result.EndTime = end
 	result.ElapsedTime = result.EndTime.Sub(start)
 
 	if resp != nil {

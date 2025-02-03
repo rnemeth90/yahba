@@ -7,7 +7,9 @@ import (
 )
 
 type Report struct {
-	Results        []Result       `json:"reports"`
+	Host           string         `json:"host"`
+	Method         string         `json:"method"`
+	Results        []Result       `json:"results"`
 	ErrorBreakdown ErrorBreakdown `json:"error_breakdown"`
 	Latency        Latency        `json:"latency"`
 	Throughput     Throughput     `json:"throughput"`
@@ -49,8 +51,10 @@ type Latency struct {
 }
 
 type Throughput struct {
-	TotalBytesSent     int `json:"total_bytes_sent"`
-	TotalBytesReceived int `json:"total_bytes_received"`
+	TotalBytesSent         int     `json:"total_bytes_sent"`
+	TotalBytesReceived     int     `json:"total_bytes_received"`
+	BytesSentPerSecond     float64 `json:"bytes_sent_per_second"`
+	BytesReceivedPerSecond float64 `json:"bytes_received_per_second"`
 }
 
 type StatusCodes struct {

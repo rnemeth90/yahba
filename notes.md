@@ -1,47 +1,41 @@
-input:
+### To-Do List
 
-url
-proxy
-proxyuser
-proxypassword
-insecure
-keepalive
-compression
-sleep
-requests
-timeout
-rps
-method
-headers
-resolvers
-body
-log package
-http1.1
+#### Completed Tasks
 
-verbose (logging package)
-output
+- [x] **No Colors**: Removed ANSI color output to ensure compatibility across all environments.
+- [x] **Graceful Shutdown**: Implemented a clean and controlled shutdown process.
+- [x] **Refined `usage()`**: Improved the user experience for the `usage()` function.
+- [x] **Report Formatting**: Enhanced the formatting of reports for better readability.
+- [x] **Refactored `workerpool()`**: Broke it into smaller, more manageable functions.
+- [x] **Added Documentation**: Comprehensive documentation added for the project.
+- [x] **Consistent Timeouts**: Implemented uniform timeouts for HTTP clients, resolvers, etc.
+- [x] **Advanced Metrics**:
+  - Throughput over time
+    - Measure the amount of data sent to the endpoint over a time period (i.e. bytes/second)
+      - [x] Track the time taken for each request
+      - [x] Track the total bytes sent per request
+      - [x] Aggregate the data. Create a new struct?
+        - [x] Starttime
+        - [x] endtime
+        - [x] duration
+        - [x] # requests
+        - [x] bytes per request or total bytes
+      - [x] calculate bytes per second
+      - [x] report on the results (averages, max, min across intervals for summary metrics)
+- [x] **Improve `server.New()`**: Ensure it returns an error when needed.
 
-todo:
-[x] no colors... (some environments obviously will not support ANSI colors, leading to problems when reading output)
-[x] graceful shutdown
-[x] refine usage()
-[x] improve report formatting
-[x] Refactor workerpool() into smaller functions
-[x] add docs
-[ ] remove commented code
-[x] implement consistent timeouts (httpclient, resolvers, etc.)
+#### In Progress
+- [ ] **Switch to Cobra**: Use cobra over pflag
 
-[ ] advanced metrics (throughput over time, concurrency breakdowns, per-worker statistics)
-[ ] progress bar?
+#### Pending Tasks
 
-[ ] test server
-[ ] server.New() should return an error
-
-[ ] http3 support
-[ ] plugin system for extensibility? (custom report formats, etc.)
-[ ] rate limiting logic (exponential backoffs for failed requests?)
-
-[ ] implement tests
-
-[ ] makefile
-[ ] CI/CD
+- [ ] **Remove Commented Code**: Clean up any unused or commented-out code.
+- [ ] **Progress Bar**: Add a progress bar for visual feedback.
+- [ ] **Test Server**: Build a test server for simulations.
+- [ ] **HTTP/3 Support**: Add support for HTTP/3.
+- [ ] **Plugin System**: Enable extensibility for custom report formats, etc.
+- [ ] **Rate Limiting Logic**: Implement logic for rate limiting (e.g., exponential backoffs for failed requests).
+- [ ] **Implement Tests**: Write and execute tests for the project.
+- [ ] **Makefile**: Create a Makefile for streamlined builds and tasks.
+- [ ] **CI/CD**: Set up continuous integration and deployment pipelines.
+- [ ] **Test Server**: Build a test server for simulations.
