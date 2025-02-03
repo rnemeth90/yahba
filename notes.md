@@ -22,9 +22,9 @@
         - [x] bytes per request or total bytes
       - [x] calculate bytes per second
       - [x] report on the results (averages, max, min across intervals for summary metrics)
+- [x] **Improve `server.New()`**: Ensure it returns an error when needed.
 
 #### In Progress
-- [ ] **Improve `server.New()`**: Ensure it returns an error when needed.
 - [ ] **Switch to Cobra**: Use cobra over pflag
 
 #### Pending Tasks
@@ -38,3 +38,4 @@
 - [ ] **Implement Tests**: Write and execute tests for the project.
 - [ ] **Makefile**: Create a Makefile for streamlined builds and tasks.
 - [ ] **CI/CD**: Set up continuous integration and deployment pipelines.
+- [ ] **Test Server**: Build a test server for simulations.
