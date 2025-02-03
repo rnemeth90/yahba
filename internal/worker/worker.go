@@ -73,19 +73,20 @@ func (w *Worker) processJob(job Job) {
 	}
 
 	w.setHeaders(req)
-	w.setProtocol(req)
 
 	start := time.Now()
 	result := w.initializeResult(job, start)
 
 	resp, err := w.Client.Do(req)
 	if err != nil {
-		w.handleClientError(job, result, resp, err, start)
+	  end := time.Now()
+		w.handleClientError(job, result, resp, err, start, end)
 		return
 	}
+	end := time.Now()
 
 	defer resp.Body.Close()
-	w.processResponse(result, resp, start, job, reqSize)
+	w.processResponse(result, resp, start, end, job, reqSize)
 }
 
 // Worker pool for managing concurrency
@@ -141,12 +142,14 @@ func processResults(cfg config.Config, resultChan <-chan report.Result) report.R
 	report := report.Report{}
 	var totalRequests, totalBytesSent, totalBytesReceived int
 	resultCodes := make(map[int]int)
+	var duration time.Duration
 
 	for result := range resultChan {
 		resultCodes[result.ResultCode]++
 		totalRequests++
 		totalBytesSent += result.BytesSent
 		totalBytesReceived += result.BytesReceived
+		duration += result.ElapsedTime
 		report.Results = append(report.Results, result)
 
 		if result.ResultCode >= 400 && result.ResultCode <= 499 {
@@ -166,6 +169,8 @@ func processResults(cfg config.Config, resultChan <-chan report.Result) report.R
 	report.TotalRequests = totalRequests
 	report.Throughput.TotalBytesSent = totalBytesSent
 	report.Throughput.TotalBytesReceived = totalBytesReceived
+	report.Throughput.BytesSentPerSecond = util.CalculateBytesPerSecond(float64(totalBytesSent), duration.Seconds())
+	report.Throughput.BytesReceivedPerSecond = util.CalculateBytesPerSecond(float64(totalBytesReceived), duration.Seconds())
 	report.ConvertResultCodes(resultCodes)
 	report.CalculateLatencyMetrics()
 
@@ -189,17 +194,6 @@ func (w *Worker) setHeaders(req *http.Request) {
 	w.Config.Logger.Debug("Worker %d: Request headers set: %v", w.ID, req.Header)
 }
 
-// Set protocol for the HTTP request.
-// todo: Update to support HTTP3
-func (w *Worker) setProtocol(req *http.Request) {
-	if !w.Config.HTTP2 {
-		req.Proto = "HTTP/1.1"
-		w.Config.Logger.Debug("Worker %d: Using HTTP/1.1 for request to %s", w.ID, req.URL.Host)
-	} else {
-		w.Config.Logger.Debug("Worker %d: Using HTTP2 for request to %s", w.ID, req.URL.Host)
-	}
-}
-
 // Initialize the result object
 func (w *Worker) initializeResult(job Job, start time.Time) report.Result {
 	return report.Result{
@@ -211,11 +205,11 @@ func (w *Worker) initializeResult(job Job, start time.Time) report.Result {
 }
 
 // Process the HTTP response
-func (w *Worker) processResponse(result report.Result, resp *http.Response, start time.Time, job Job, bytesSent int) {
+func (w *Worker) processResponse(result report.Result, resp *http.Response, start time.Time, end time.Time, job Job, bytesSent int) {
 	if resp == nil {
 		w.Config.Logger.Error("Worker %d: No response received for %s", w.ID, job.Host)
 		result.Error = fmt.Errorf("no response received")
-		result.EndTime = time.Now()
+		result.EndTime = end
 		result.ElapsedTime = result.EndTime.Sub(start)
 		w.Results <- result
 		return
@@ -235,7 +229,7 @@ func (w *Worker) processResponse(result report.Result, resp *http.Response, star
 	result.BytesSent = bytesSent
 	w.Config.Logger.Debug("Worker %d: Received %d bytes from %s", w.ID, result.BytesReceived, job.Host)
 
-	result.EndTime = time.Now()
+	result.EndTime = end
 	result.ElapsedTime = result.EndTime.Sub(start)
 	result.ResultCode = resp.StatusCode
 

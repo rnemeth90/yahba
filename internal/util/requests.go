@@ -39,3 +39,11 @@ func CalculateRawRequestSize(req *http.Request) (int, error) {
 
 	return size, nil
 }
+
+// Calculate BytesPerSecond from the given bytes and duration in seconds
+func CalculateBytesPerSecond(bytes float64, durationSeconds float64) float64 {
+	if durationSeconds == 0 {
+		return 0
+	}
+	return float64(bytes) / durationSeconds
+}

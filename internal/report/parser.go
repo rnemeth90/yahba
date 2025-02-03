@@ -19,6 +19,8 @@ func ParseRaw(report Report) (string, error) {
 	builder.WriteString("==========================\n\n")
 	successRate := float64(report.Successes) / float64(report.TotalRequests) * 100
 	failureRate := float64(report.Failures) / float64(report.TotalRequests) * 100
+	builder.WriteString(fmt.Sprintf("Host:                 %s\n", report.Host))
+	builder.WriteString(fmt.Sprintf("Method:               %s\n", report.Method))
 	builder.WriteString(fmt.Sprintf("Total Requests:       %d\n", report.TotalRequests))
 	builder.WriteString(fmt.Sprintf("Successes:            %d (%.2f%%)\n", report.Successes, successRate))
 	builder.WriteString(fmt.Sprintf("Failures:             %d (%.2f%%)\n\n", report.Failures, failureRate))
@@ -36,7 +38,9 @@ func ParseRaw(report Report) (string, error) {
 
 	builder.WriteString("Throughput:\n")
 	builder.WriteString(fmt.Sprintf("  Total Bytes Sent:     %d\n", report.Throughput.TotalBytesSent))
-	builder.WriteString(fmt.Sprintf("  Total Bytes Received: %d\n\n", report.Throughput.TotalBytesReceived))
+	builder.WriteString(fmt.Sprintf("  Total Bytes Received: %d\n", report.Throughput.TotalBytesReceived))
+	builder.WriteString(fmt.Sprintf("  Bytes Sent/Sec:       %.02f\n", report.Throughput.BytesSentPerSecond))
+	builder.WriteString(fmt.Sprintf("  Bytes Received/Sec:   %.02f\n\n", report.Throughput.BytesReceivedPerSecond))
 
 	builder.WriteString("Status Code Breakdown:\n")
 	builder.WriteString(fmt.Sprintf("  200 OK:                 %d\n", report.StatusCodes.Num200))

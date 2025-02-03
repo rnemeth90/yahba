@@ -6,11 +6,12 @@ import (
 	"github.com/rnemeth90/yahba/internal/logger"
 )
 
-func New() {
+func New() error {
 	l := logger.New("debug", "stdout", false, "")
 
 	http.HandleFunc("/test", testHandler)
 
 	l.Debug("Starting server")
-	http.ListenAndServe(":8085", nil)
+	err := http.ListenAndServe(":8085", nil)
+	return err
 }
