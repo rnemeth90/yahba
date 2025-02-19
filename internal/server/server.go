@@ -7,7 +7,7 @@ import (
 )
 
 func New() error {
-	l := logger.New("debug", "stdout", false, "")
+	l := logger.New("debug", "stdout", false)
 
 	http.HandleFunc("/test", testHandler)
 

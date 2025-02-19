@@ -16,7 +16,7 @@ func TestNewClient(t *testing.T) {
 		Timeout:     15,
 		KeepAlive:   true,
 		Compression: false,
-		Logger:      logger.New("error", "stdout", false, ""),
+		Logger:      logger.New("error", "stdout", false),
 	}
 
 	client, err := NewClient(cfg)
@@ -51,7 +51,7 @@ func TestGETRequest(t *testing.T) {
 	cfg := config.Config{
 		URL:    testServer.URL,
 		Method: http.MethodGet,
-		Logger: logger.New("error", "stdout", false, ""),
+		Logger: logger.New("error", "stdout", false),
 	}
 	client, err := NewClient(cfg)
 	if err != nil {
@@ -73,7 +73,7 @@ func TestGETRequest(t *testing.T) {
 func TestCustomResolver(t *testing.T) {
 	cfg := config.Config{
 		Resolver: "8.8.8.8:53",
-		Logger:   logger.New("error", "stdout", false, ""),
+		Logger:   logger.New("error", "stdout", false),
 	}
 
 	client, err := NewClient(cfg)
@@ -102,7 +102,7 @@ func TestProxyConfiguration(t *testing.T) {
 
 	cfg := config.Config{
 		Proxy:  proxyServer.URL,
-		Logger: logger.New("error", "stdout", false, ""),
+		Logger: logger.New("error", "stdout", false),
 	}
 
 	client, err := NewClient(cfg)
@@ -125,7 +125,7 @@ func TestProxyConfiguration(t *testing.T) {
 func TestSkipDNS(t *testing.T) {
 	cfg := config.Config{
 		SkipDNS: false,
-		Logger:  logger.New("error", "stdout", false, ""),
+		Logger:  logger.New("error", "stdout", false),
 	}
 
 	client, err := NewClient(cfg)
@@ -143,7 +143,7 @@ func TestSkipDNS(t *testing.T) {
 func TestTLSConfig(t *testing.T) {
 	cfg := config.Config{
 		Insecure: true,
-		Logger:   logger.New("error", "stdout", false, ""),
+		Logger:   logger.New("error", "stdout", false),
 	}
 
 	client, err := NewClient(cfg)
