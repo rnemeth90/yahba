@@ -79,7 +79,7 @@ func (w *Worker) processJob(job Job) {
 
 	resp, err := w.Client.Do(req)
 	if err != nil {
-	  end := time.Now()
+		end := time.Now()
 		w.handleClientError(job, result, resp, err, start, end)
 		return
 	}
@@ -97,13 +97,14 @@ func Work(ctx context.Context, cfg config.Config, jobs []Job, reportChan chan<- 
 		return
 	}
 
+	numWorkers := cfg.RPS * 10
 	jobChan := make(chan Job, len(jobs))
 	resultChan := make(chan report.Result, len(jobs))
 
 	wg := &sync.WaitGroup{}
 
-	cfg.Logger.Info("Starting worker pool with %d workers", cfg.RPS)
-	for i := 0; i < cfg.RPS; i++ {
+	cfg.Logger.Info("Starting worker pool with %d workers", numWorkers)
+	for i := 0; i < numWorkers; i++ {
 		worker := newWorker(i, jobChan, resultChan, client, cfg)
 		wg.Add(1)
 		go worker.watch(ctx, wg)
@@ -145,24 +146,33 @@ func processResults(cfg config.Config, resultChan <-chan report.Result) report.R
 	var duration time.Duration
 
 	for result := range resultChan {
-		resultCodes[result.ResultCode]++
 		totalRequests++
+		resultCodes[result.ResultCode]++
 		totalBytesSent += result.BytesSent
 		totalBytesReceived += result.BytesReceived
 		duration += result.ElapsedTime
+
 		report.Results = append(report.Results, result)
 
+		// check client errors vs. server errors
 		if result.ResultCode >= 400 && result.ResultCode <= 499 {
 			report.ErrorBreakdown.ClientErrors++
 		} else if result.ResultCode >= 500 && result.ResultCode <= 599 {
 			report.ErrorBreakdown.ServerErrors++
 		}
 
+		// count all failed requests
 		if result.ResultCode >= 400 {
 			report.Failures++
 			cfg.Logger.Warn("Request failed with status code %d", result.ResultCode)
 		} else {
+			// count all successes
 			report.Successes++
+		}
+
+		// provide occassional status updates
+		if totalRequests%1000 == 0 {
+			cfg.Logger.Info("Processed %d requests...", totalRequests)
 		}
 	}
 
