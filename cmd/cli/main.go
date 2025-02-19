@@ -88,7 +88,7 @@ Examples:
 
 func main() {
 	pflag.Parse()
-	c.Logger = logger.New(c.LogLevel, c.OutputFile, c.Silent, c.FileName)
+	c.Logger = logger.New(c.LogLevel, c.OutputFile, c.Silent)
 
 	if help {
 		usage()

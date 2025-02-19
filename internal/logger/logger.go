@@ -20,12 +20,12 @@ type Logger struct {
 	*log.Logger
 }
 
-func New(level string, output string, silent bool, fileName string) *Logger {
+func New(level string, destination string, silent bool) *Logger {
 	l := &Logger{
 		Silent: silent,
 	}
 
-	if err := l.SetOutputDestination(output, fileName); err != nil {
+	if err := l.SetOutputDestination(destination); err != nil {
 		fmt.Fprintf(os.Stderr, "failed to set output destination: %v\n", err)
 		os.Exit(1)
 	}
@@ -100,7 +100,11 @@ func (l *Logger) SetLogLevel(logLevel string) error {
 	return nil
 }
 
-func (l *Logger) SetOutputDestination(destination string, fileName string) error {
+func (l *Logger) SetOutputDestination(destination string) error {
+	if destination == "" {
+		return fmt.Errorf("invalid log destination. output destination cannot be empty")
+	}
+
 	dest := strings.ToLower(destination)
 
 	switch dest {
@@ -108,16 +112,12 @@ func (l *Logger) SetOutputDestination(destination string, fileName string) error
 		l.Logger = log.New(os.Stdout, "", log.LstdFlags)
 	case "stderr":
 		l.Logger = log.New(os.Stderr, "", log.LstdFlags)
-	case "file":
-		// dateTimeString := time.Now().Format("2006-01-02-15-04-05")
-		// fileName := fmt.Sprintf("%s-YAHBA.log", os.TempDir(), os.PathSeparator, dateTimeString)
-		f, err := os.OpenFile(fileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
+	default:
+		f, err := os.OpenFile(destination, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
 		if err != nil {
 			return err
 		}
 		l.Logger = log.New(f, "", log.LstdFlags)
-	default:
-		return fmt.Errorf("invalid log destination. Valid destinations: stdout, stderr, file")
 	}
 
 	return nil
