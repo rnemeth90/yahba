@@ -30,7 +30,7 @@ func TestSetLogLevel(t *testing.T) {
 		}
 	}
 
-	err := l.SetLogLevel("invalid")
+	err := l.SetLogLevel("l33t h4x0r")
 	if err == nil || !strings.Contains(err.Error(), "invalid log level") {
 		t.Errorf("expected error for invalid log level, got %v", err)
 	}

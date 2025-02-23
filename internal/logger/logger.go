@@ -20,6 +20,7 @@ type Logger struct {
 	*log.Logger
 }
 
+// TODO: Create a comment for this function
 func New(level string, destination string, silent bool) *Logger {
 	l := &Logger{
 		Silent: silent,
@@ -81,6 +82,8 @@ func (l *Logger) Error(message string, v ...any) {
 	}
 }
 
+// SetLogLevel sets the log level of the logger
+// Valid log levels are: debug, info, warn, error
 func (l *Logger) SetLogLevel(logLevel string) error {
 	logger := strings.ToUpper(logLevel)
 
@@ -100,6 +103,8 @@ func (l *Logger) SetLogLevel(logLevel string) error {
 	return nil
 }
 
+// SetOutputDestination sets the output destination of the logger
+// Valid destinations are: stdout, stderr, or a file path
 func (l *Logger) SetOutputDestination(destination string) error {
 	if destination == "" {
 		return fmt.Errorf("invalid log destination. output destination cannot be empty")
