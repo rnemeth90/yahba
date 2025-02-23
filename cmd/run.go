@@ -96,6 +96,7 @@ func run(ctx context.Context, c config.Config) error {
 	}
 	c.Logger.Info("Configuration validated successfully")
 
+	// todo: do we need to parse headers here? why?
 	if c.Headers != "" {
 		c.Logger.Debug("Parsing headers: %s", c.Headers)
 		parsedHeaders, err := util.ParseHeaders(c.Headers)
@@ -106,10 +107,11 @@ func run(ctx context.Context, c config.Config) error {
 		c.ParsedHeaders = parsedHeaders
 	}
 
+	// todo: do we need to create individual jobs if the jobs are all the same?
 	c.Logger.Info("Creating %d jobs for requests to %s", c.Requests, c.URL)
 	jobs := make([]worker.Job, c.Requests)
 	for i := 0; i < c.Requests; i++ {
-		jobs[i] = worker.Job{Host: c.URL, Method: c.Method, Body: c.Body}
+		jobs[i] = worker.Job{ID: i, Host: c.URL, Method: c.Method, Body: c.Body}
 	}
 
 	reportChan := make(chan report.Report, c.Requests)

@@ -24,6 +24,7 @@ type Worker struct {
 }
 
 type Job struct {
+	ID     int
 	Host   string
 	Method string
 	Body   string
@@ -89,7 +90,7 @@ func (w *Worker) processJob(job Job) {
 	w.processResponse(result, resp, start, end, job, reqSize)
 }
 
-// Worker pool for managing concurrency
+// todo: create a comment for this function
 func Work(ctx context.Context, cfg config.Config, jobs []Job, reportChan chan<- report.Report) {
 	client, err := client.NewClient(cfg)
 	if err != nil {

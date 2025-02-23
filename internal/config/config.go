@@ -1,14 +1,18 @@
 package config
 
 import (
+	"context"
 	"net"
+	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/rnemeth90/yahba/internal/logger"
 	"github.com/rnemeth90/yahba/internal/util"
 )
 
+// Config holds the configuration for the load test
 type Config struct {
 	URL           string
 	Method        string
@@ -131,4 +135,61 @@ func (config *Config) Validate() error {
 	}
 
 	return nil
+}
+
+// SetupProxy configures the proxy settings for the client
+func (c *Config) SetupProxy() (*url.URL, error) {
+	c.Logger.Debug("Configuring proxy: %s", c.Proxy)
+	proxyURL, err := url.Parse(c.Proxy)
+	if err != nil {
+		c.Logger.Error("Invalid proxy URL: %v", err)
+		return nil, err
+	}
+
+	if c.ProxyUser != "" && c.ProxyPassword != "" {
+		c.Logger.Debug("Configuring proxy authentication")
+		proxyURL.User = url.UserPassword(c.ProxyUser, c.ProxyPassword)
+	}
+
+	return proxyURL, nil
+}
+
+// SkipNameResolution bypasses DNS resolution for the host
+func (c *Config) SkipNameResolution(tr *http.Transport) {
+	c.Logger.Debug("Bypassing name resolution for host: %s", c.URL)
+	tr.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+		_, port, err := net.SplitHostPort(addr)
+		if err != nil {
+			if strings.HasPrefix(c.URL, "https://") {
+				port = "443"
+			} else {
+				port = "80"
+			}
+		}
+
+		c.Logger.Debug("Bypassing DNS resolution for host: %s:%s", c.URL, port)
+		return net.Dial(network, net.JoinHostPort(c.URL, port))
+	}
+}
+
+// SetupCustomResolver configures a custom DNS resolver for the client
+func (c *Config) SetupCustomResolver(tr *http.Transport) {
+	c.Logger.Debug("Configuring custom DNS resolver: %s", c.Resolver)
+	tr.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+		dialer := &net.Dialer{
+			Resolver: &net.Resolver{
+				PreferGo: true,
+				Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
+					c.Logger.Debug("Using custom resolver %s to resolve: %s", c.Resolver, c.URL)
+					d := net.Dialer{
+						Timeout: time.Duration(c.Timeout) * time.Second,
+					}
+
+					return d.DialContext(ctx, "udp", c.Resolver)
+				},
+			},
+		}
+		return dialer.DialContext(ctx, network, addr)
+	}
+
 }
