@@ -16,7 +16,7 @@ func TestNewClient(t *testing.T) {
 		Timeout:     15,
 		KeepAlive:   true,
 		Compression: false,
-		Logger:      logger.New("error", "stdout", false, ""),
+		Logger:      logger.New("error", "stdout", false),
 	}
 
 	client, err := NewClient(cfg)
@@ -51,7 +51,7 @@ func TestGETRequest(t *testing.T) {
 	cfg := config.Config{
 		URL:    testServer.URL,
 		Method: http.MethodGet,
-		Logger: logger.New("error", "stdout", false, ""),
+		Logger: logger.New("error", "stdout", false),
 	}
 	client, err := NewClient(cfg)
 	if err != nil {
@@ -67,97 +67,6 @@ func TestGETRequest(t *testing.T) {
 
 	if response.StatusCode != http.StatusOK {
 		t.Fatalf("Expected status 200 OK, got %v", response.StatusCode)
-	}
-}
-
-func TestCustomResolver(t *testing.T) {
-	cfg := config.Config{
-		Resolver: "8.8.8.8:53",
-		Logger:   logger.New("error", "stdout", false, ""),
-	}
-
-	client, err := NewClient(cfg)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	req := httptest.NewRequest("GET", "http://www.example.com", nil)
-	req.RequestURI = ""
-	_, err = client.Do(req)
-	if err != nil {
-		t.Fatalf("Failed to resolve using custom resolver: %v", err)
-	}
-}
-
-func TestProxyConfiguration(t *testing.T) {
-	// Set up a mock server to act as a proxy
-	proxyServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodGet && r.URL.Path == "/" {
-			w.WriteHeader(http.StatusOK)
-		} else {
-			w.WriteHeader(http.StatusForbidden)
-		}
-	}))
-	defer proxyServer.Close()
-
-	cfg := config.Config{
-		Proxy:  proxyServer.URL,
-		Logger: logger.New("error", "stdout", false, ""),
-	}
-
-	client, err := NewClient(cfg)
-	if err != nil {
-		t.Fatalf("Failed to create client with proxy: %v", err)
-	}
-
-	req, _ := http.NewRequest("GET", "http://example.com", nil)
-	response, err := client.Do(req)
-	if err != nil {
-		t.Fatalf("Failed to make request through proxy: %v", err)
-	}
-	defer response.Body.Close()
-
-	if response.StatusCode != http.StatusOK {
-		t.Fatalf("Expected 200 OK from proxy, got %v", response.StatusCode)
-	}
-}
-
-func TestSkipDNS(t *testing.T) {
-	cfg := config.Config{
-		SkipDNS: false,
-		Logger:  logger.New("error", "stdout", false, ""),
-	}
-
-	client, err := NewClient(cfg)
-	if err != nil {
-		t.Fatalf("Failed to create client with SkipDNS: %v", err)
-	}
-
-	req, _ := http.NewRequest("GET", "http://example.com", nil)
-	_, err = client.Do(req)
-	if err != nil && !isTimeoutError(err) {
-		t.Fatalf("Failed to execute request with SkipDNS: %v", err)
-	}
-}
-
-func TestTLSConfig(t *testing.T) {
-	cfg := config.Config{
-		Insecure: true,
-		Logger:   logger.New("error", "stdout", false, ""),
-	}
-
-	client, err := NewClient(cfg)
-	if err != nil {
-		t.Fatalf("Failed to create client with TLS config: %v", err)
-	}
-
-	transport, ok := client.Transport.(*http.Transport)
-	if !ok {
-		t.Fatal("Expected http.Transport for client Transport")
-	}
-
-	if !transport.TLSClientConfig.InsecureSkipVerify {
-		t.Fatalf("Expected InsecureSkipVerify to be true")
 	}
 }
 

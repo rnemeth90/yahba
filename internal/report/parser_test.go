@@ -66,10 +66,10 @@ func TestParseRaw(t *testing.T) {
 		t.Fatalf("unexpected error in ParseRaw: %v", err)
 	}
 
-	if !strings.Contains(output, "Total Requests:      100") {
-		t.Errorf("expected 'Total Requests:      100' in raw output, got: %s", output)
+	if !strings.Contains(output, "Total Requests:       100") {
+		t.Errorf("expected 'Total Requests:' in raw output, got: %s", output)
 	}
-	if !strings.Contains(output, "Latency:") {
+	if !strings.Contains(output, "Latency Metrics:") {
 		t.Errorf("expected 'Latency' section in raw output, got: %s", output)
 	}
 	if !strings.Contains(output, "Status Code Breakdown:") {

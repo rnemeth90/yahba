@@ -1,12 +1,9 @@
 package client
 
 import (
-	"context"
 	"crypto/tls"
-	"net"
 	"net/http"
 	"net/url"
-	"strings"
 	"time"
 
 	"github.com/rnemeth90/yahba/internal/config"
@@ -18,19 +15,10 @@ func NewClient(cfg config.Config) (*http.Client, error) {
 
 	var proxyURL *url.URL
 	var err error
-
-	// proxy
 	if cfg.Proxy != "" {
-		cfg.Logger.Debug("Configuring proxy: %s", cfg.Proxy)
-		proxyURL, err = url.Parse(cfg.Proxy)
+		proxyURL, err = cfg.SetupProxy()
 		if err != nil {
-			cfg.Logger.Error("Invalid proxy URL: %v", err)
 			return nil, err
-		}
-
-		if cfg.ProxyUser != "" && cfg.ProxyPassword != "" {
-			cfg.Logger.Debug("Configuring proxy authentication")
-			proxyURL.User = url.UserPassword(cfg.ProxyUser, cfg.ProxyPassword)
 		}
 	}
 
@@ -39,52 +27,27 @@ func NewClient(cfg config.Config) (*http.Client, error) {
 		transport = &http2.Transport{
 			DisableCompression: cfg.Compression,
 			TLSClientConfig:    &tls.Config{InsecureSkipVerify: cfg.Insecure},
+			IdleConnTimeout:    time.Duration(cfg.Timeout) * time.Second,
 		}
 	} else {
 		tr := &http.Transport{
-			DisableKeepAlives:  cfg.KeepAlive,
-			DisableCompression: cfg.Compression,
-			ForceAttemptHTTP2:  false,
-			TLSClientConfig:    &tls.Config{InsecureSkipVerify: cfg.Insecure},
-			Proxy:              http.ProxyURL(proxyURL),
+			MaxIdleConns:        1000,
+			MaxIdleConnsPerHost: 500,
+			IdleConnTimeout:     time.Duration(cfg.Timeout) * time.Second,
+			DisableKeepAlives:   cfg.KeepAlive,
+			DisableCompression:  cfg.Compression,
+			ForceAttemptHTTP2:   false,
+			TLSClientConfig:     &tls.Config{InsecureSkipVerify: cfg.Insecure},
+			Proxy:               http.ProxyURL(proxyURL),
 		}
 
 		// skipping DNS resolution only works with HTTP 1.1, not HTTP 2.0
 		if cfg.SkipDNS {
-			cfg.Logger.Debug("Configuring DNS skipping for host: %s", cfg.URL)
-			tr.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
-				_, port, err := net.SplitHostPort(addr)
-				if err != nil {
-					if strings.HasPrefix(cfg.URL, "https://") {
-						port = "443"
-					} else {
-						port = "80"
-					}
-				}
-
-				cfg.Logger.Debug("Bypassing DNS resolution for host: %s:%s", cfg.URL, port)
-				return net.Dial(network, net.JoinHostPort(cfg.URL, port))
-			}
+			cfg.SkipNameResolution(tr)
 		}
 
 		if cfg.Resolver != "" {
-			cfg.Logger.Debug("Configuring custom DNS resolver: %s", cfg.Resolver)
-			tr.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
-				dialer := &net.Dialer{
-					Resolver: &net.Resolver{
-						PreferGo: true,
-						Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
-							cfg.Logger.Debug("Using custom resolver %s to resolve: %s", cfg.Resolver, cfg.URL)
-							d := net.Dialer{
-								Timeout: time.Duration(cfg.Timeout) * time.Second,
-							}
-
-							return d.DialContext(ctx, "udp", cfg.Resolver)
-						},
-					},
-				}
-				return dialer.DialContext(ctx, network, addr)
-			}
+			cfg.SetupCustomResolver(tr)
 		}
 
 		transport = tr
