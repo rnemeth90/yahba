@@ -2,14 +2,13 @@ package logger
 
 import (
 	"bytes"
-	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
 )
 
 func TestSetLogLevel(t *testing.T) {
-	l := New("info", "stdout", false, "")
+	l := New("info", "stdout", false)
 
 	tests := []struct {
 		level       string
@@ -31,7 +30,7 @@ func TestSetLogLevel(t *testing.T) {
 		}
 	}
 
-	err := l.SetLogLevel("invalid")
+	err := l.SetLogLevel("l33t h4x0r")
 	if err == nil || !strings.Contains(err.Error(), "invalid log level") {
 		t.Errorf("expected error for invalid log level, got %v", err)
 	}
@@ -53,7 +52,7 @@ func TestLogLevelBehavior(t *testing.T) {
 
 	for _, tt := range tests {
 		var buf bytes.Buffer
-		l := New(tt.setLevel, "stdout", false, "")
+		l := New(tt.setLevel, "stdout", false)
 		l.Logger.SetOutput(&buf) // Redirect output to buffer for testing
 
 		switch tt.logLevel {
@@ -86,7 +85,7 @@ func TestSetOutputDestination(t *testing.T) {
 
 	for _, tt := range tests {
 		var buf bytes.Buffer
-		l := New("info", tt.destination, false, "")
+		l := New("info", tt.destination, false)
 		l.Logger.SetOutput(&buf) // Redirect to buffer to verify output
 
 		l.Info("Test message")
@@ -96,7 +95,7 @@ func TestSetOutputDestination(t *testing.T) {
 		}
 	}
 
-	l := New("info", "file", false, "yahba.log")
+	l := New("info", "yahba.log", false)
 	defer func() {
 		if l.Logger != nil && l.Logger.Writer() != os.Stdout && l.Logger.Writer() != os.Stderr {
 			if f, ok := l.Logger.Writer().(*os.File); ok {
@@ -107,7 +106,7 @@ func TestSetOutputDestination(t *testing.T) {
 	l.Info("Test file output message")
 
 	fileOutput := l.Logger.Writer().(*os.File)
-	data, err := ioutil.ReadFile(fileOutput.Name())
+	data, err := os.ReadFile(fileOutput.Name())
 	if err != nil {
 		t.Fatalf("failed to read log file: %v", err)
 	}
@@ -115,7 +114,7 @@ func TestSetOutputDestination(t *testing.T) {
 		t.Errorf("expected message to be logged to file, got %v", string(data))
 	}
 
-	err = l.SetOutputDestination("invalid", "")
+	err = l.SetOutputDestination("")
 	if err == nil || !strings.Contains(err.Error(), "invalid log destination") {
 		t.Errorf("expected error for invalid log destination, got %v", err)
 	}
