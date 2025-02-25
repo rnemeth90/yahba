@@ -191,5 +191,4 @@ func (c *Config) SetupCustomResolver(tr *http.Transport) {
 		}
 		return dialer.DialContext(ctx, network, addr)
 	}
-
 }

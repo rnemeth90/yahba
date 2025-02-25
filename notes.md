@@ -23,9 +23,17 @@
       - [x] calculate bytes per second
       - [x] report on the results (averages, max, min across intervals for summary metrics)
 - [x] **Improve `server.New()`**: Ensure it returns an error when needed.
+- [x] **Switch to Cobra**: Use cobra over pflag
 
 #### In Progress
-- [ ] **Switch to Cobra**: Use cobra over pflag
+- [ ] **Implement Tests**: Write and execute tests for the project.
+      - [x] **client package**: Add tests for the client package.
+      - [ ] **config package**: Add tests for the config package.
+      - [ ] **logger package**: Add tests for the logger.
+      - [ ] **report package**: Add tests for the report package.
+      - [ ] **server package**: Add tests for the server package.
+      - [ ] **worker package**: Add tests for the worker package.
+      - [ ] **util package**: Add tests for the util package.
 
 #### Pending Tasks
 
@@ -35,7 +43,5 @@
 - [ ] **HTTP/3 Support**: Add support for HTTP/3.
 - [ ] **Plugin System**: Enable extensibility for custom report formats, etc.
 - [ ] **Rate Limiting Logic**: Implement logic for rate limiting (e.g., exponential backoffs for failed requests).
-- [ ] **Implement Tests**: Write and execute tests for the project.
 - [ ] **Makefile**: Create a Makefile for streamlined builds and tasks.
 - [ ] **CI/CD**: Set up continuous integration and deployment pipelines.
-- [ ] **Test Server**: Build a test server for simulations.
