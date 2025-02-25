@@ -14,6 +14,15 @@ const (
 	ERROR
 )
 
+type iLogger interface {
+	Debug(message string, v ...any)
+	Info(message string, v ...any)
+	Warn(message string, v ...any)
+	Error(message string, v ...any)
+	SetLogLevel(logLevel string) error
+	SetOutputDestination(destination string) error
+}
+
 type Logger struct {
 	Level  int
 	Silent bool
