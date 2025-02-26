@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"net/url"
 	"testing"
+
+	"github.com/rnemeth90/yahba/internal/logger"
 )
 
 func TestSetupProxy(t *testing.T) {
@@ -20,6 +22,7 @@ func TestSetupProxy(t *testing.T) {
 		Proxy:         "http://localhost:8080",
 		ProxyUser:     "user",
 		ProxyPassword: "password",
+		Logger:        &logger.Logger{Silent: true},
 	}
 
 	got, err := c.SetupProxy()
