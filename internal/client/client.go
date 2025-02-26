@@ -43,7 +43,7 @@ func NewClient(cfg config.Config) (*http.Client, error) {
 
 		// skipping DNS resolution only works with HTTP 1.1, not HTTP 2.0
 		if cfg.SkipDNS {
-			cfg.SkipNameResolution(tr)
+			cfg.SkipNameResolution(tr, nil)
 		}
 
 		if cfg.Resolver != "" {

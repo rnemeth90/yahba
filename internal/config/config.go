@@ -154,22 +154,26 @@ func (c *Config) SetupProxy() (*url.URL, error) {
 	return proxyURL, nil
 }
 
-// SkipNameResolution bypasses DNS resolution for the host
-func (c *Config) SkipNameResolution(tr *http.Transport) {
-	c.Logger.Debug("Bypassing name resolution for host: %s", c.URL)
-	tr.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
-		_, port, err := net.SplitHostPort(addr)
-		if err != nil {
-			if strings.HasPrefix(c.URL, "https://") {
-				port = "443"
-			} else {
-				port = "80"
-			}
-		}
+// DNSBypass is a function type that can be replaced in tests
+type DNSBypassFunc func(ctx context.Context, network, addr string) (net.Conn, error)
 
-		c.Logger.Debug("Bypassing DNS resolution for host: %s:%s", c.URL, port)
-		return net.Dial(network, net.JoinHostPort(c.URL, port))
+// SkipNameResolution bypasses DNS resolution by replacing the default DialContext function
+func (c *Config) SkipNameResolution(tr *http.Transport, dialFunc DNSBypassFunc) {
+	if dialFunc == nil {
+		dialFunc = func(ctx context.Context, network, addr string) (net.Conn, error) {
+			_, port, err := net.SplitHostPort(addr)
+			if err != nil {
+				if strings.HasPrefix(c.URL, "https://") {
+					port = "443"
+				} else {
+					port = "80"
+				}
+			}
+			return net.Dial(network, net.JoinHostPort(c.URL, port))
+		}
 	}
+
+	tr.DialContext = dialFunc
 }
 
 // SetupCustomResolver configures a custom DNS resolver for the client
