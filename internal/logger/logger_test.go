@@ -7,6 +7,111 @@ import (
 	"testing"
 )
 
+func TestNew(t *testing.T) {
+	l := New("info", "stdout", false)
+
+	if l.Level != INFO {
+		t.Errorf("expected level %d, got %d", INFO, l.Level)
+	}
+	if l.Silent {
+		t.Errorf("expected silent to be false, got true")
+	}
+	if l.Logger == nil {
+		t.Errorf("expected logger to be initialized, got nil")
+	}
+}
+
+func TestShouldLog(t *testing.T) {
+	l := New("info", "stdout", false)
+
+	tests := []struct {
+		level    int
+		expected bool
+	}{
+		{DEBUG, false},
+		{INFO, true},
+		{WARN, true},
+		{ERROR, true},
+	}
+
+	for _, tt := range tests {
+		l.Level = tt.level
+		if l.shouldLog(tt.level) != tt.expected {
+			t.Errorf("expected %v, got %v for level %d", tt.expected, l.shouldLog(tt.level), tt.level)
+		}
+	}
+}
+
+func TestLogOutput(t *testing.T) {
+	var buf bytes.Buffer
+	l := New("info", "stdout", false)
+	l.Logger.SetOutput(&buf) // Redirect output to buffer for testing
+
+	l.logOutput("Debug", "Debug message")
+	if strings.Contains(buf.String(), "Debug message") {
+		t.Errorf("expected message to not be logged at debug level")
+	}
+
+	l.logOutput("Info", "Info message")
+	if !strings.Contains(buf.String(), "Info message") {
+		t.Errorf("expected message to be logged at info level")
+	}
+
+	l.logOutput("Warn", "Warn message")
+	if !strings.Contains(buf.String(), "Warn message") {
+		t.Errorf("expected message to be logged at warn level")
+	}
+
+	l.logOutput("Error", "Error message")
+	if !strings.Contains(buf.String(), "Error message") {
+		t.Errorf("expected message to be logged at error level")
+	}
+}
+
+func TestInfo(t *testing.T) {
+	var buf bytes.Buffer
+	l := New("info", "stdout", false)
+	l.Logger.SetOutput(&buf)
+
+	l.Info("Test message")
+	if !strings.Contains(buf.String(), "[INFO] Test message") {
+		t.Errorf("expected message to be logged at info level")
+	}
+}
+
+func TestDebug(t *testing.T) {
+	var buf bytes.Buffer
+	l := New("debug", "stdout", false)
+	l.Logger.SetOutput(&buf)
+
+	l.Debug("Test message")
+	if !strings.Contains(buf.String(), "[DEBUG] Test message") {
+		t.Errorf("expected message to be logged at debug level")
+	}
+}
+
+func TestWarn(t *testing.T) {
+	var buf bytes.Buffer
+	l := New("warn", "stdout", false)
+	l.Logger.SetOutput(&buf)
+
+	l.Warn("Test message")
+	if !strings.Contains(buf.String(), "[WARN] Test message") {
+		t.Errorf("expected message to be logged at warn level")
+	}
+}
+
+func TestError(t *testing.T) {
+	var buf bytes.Buffer
+	l := New("error", "stdout", false)
+	l.Logger.SetOutput(&buf)
+
+	l.Error("Test message")
+	if !strings.Contains(buf.String(), "[ERROR] Test message") {
+		t.Errorf("expected message to be logged at error level")
+	}
+}
+
 func TestSetLogLevel(t *testing.T) {
 	l := New("info", "stdout", false)
 

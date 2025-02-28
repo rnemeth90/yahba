@@ -29,7 +29,7 @@ type Logger struct {
 	*log.Logger
 }
 
-// TODO: Create a comment for this function
+// New creates a new logger with the specified log level and output destination
 func New(level string, destination string, silent bool) *Logger {
 	l := &Logger{
 		Silent: silent,
@@ -49,10 +49,12 @@ func New(level string, destination string, silent bool) *Logger {
 	return l
 }
 
+// shouldLog returns true if the log level is less than or equal to the specified log level
 func (l *Logger) shouldLog(logLevel int) bool {
 	return l.Level <= logLevel
 }
 
+// logOutput logs the message to the output destination
 func (l *Logger) logOutput(level string, message string, v ...any) {
 	if l.Silent {
 		return
