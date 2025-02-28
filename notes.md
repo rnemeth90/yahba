@@ -28,8 +28,8 @@
 #### In Progress
 - [ ] **Implement Tests**: Write and execute tests for the project.
       - [x] **client package**: Add tests for the client package.
-      - [ ] **config package**: Add tests for the config package.
-      - [ ] **logger package**: Add tests for the logger.
+      - [x] **config package**: Add tests for the config package.
+      - [x] **logger package**: Add tests for the logger.
       - [ ] **report package**: Add tests for the report package.
       - [ ] **server package**: Add tests for the server package.
       - [ ] **worker package**: Add tests for the worker package.
