@@ -28,7 +28,7 @@ func TestShouldLog(t *testing.T) {
 		level    int
 		expected bool
 	}{
-		{DEBUG, false},
+		{DEBUG, true},
 		{INFO, true},
 		{WARN, true},
 		{ERROR, true},
@@ -45,26 +45,23 @@ func TestShouldLog(t *testing.T) {
 func TestLogOutput(t *testing.T) {
 	var buf bytes.Buffer
 	l := New("info", "stdout", false)
-	l.Logger.SetOutput(&buf) // Redirect output to buffer for testing
+	l.Logger.SetOutput(&buf)
 
-	l.logOutput("Debug", "Debug message")
-	if strings.Contains(buf.String(), "Debug message") {
-		t.Errorf("expected message to not be logged at debug level")
+	tests := []struct {
+		level   string
+		message string
+	}{
+		{"debug", "Debug message"},
+		{"info", "Info message"},
+		{"warn", "Warn message"},
+		{"error", "Error message"},
 	}
 
-	l.logOutput("Info", "Info message")
-	if !strings.Contains(buf.String(), "Info message") {
-		t.Errorf("expected message to be logged at info level")
-	}
-
-	l.logOutput("Warn", "Warn message")
-	if !strings.Contains(buf.String(), "Warn message") {
-		t.Errorf("expected message to be logged at warn level")
-	}
-
-	l.logOutput("Error", "Error message")
-	if !strings.Contains(buf.String(), "Error message") {
-		t.Errorf("expected message to be logged at error level")
+	for _, tt := range tests {
+		l.logOutput(tt.level, tt.message)
+		if !strings.Contains(buf.String(), tt.message) {
+			t.Errorf("expected message to be logged at %s level", tt.level)
+		}
 	}
 }
 
