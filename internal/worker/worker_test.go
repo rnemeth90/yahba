@@ -30,11 +30,20 @@ func TestNewWorker(t *testing.T) {
 	}
 }
 
-func TestWatch(t *testing.T) {
-
-}
+// func TestWatch(t *testing.T) {
+//
+// }
 
 func TestProcessJob(t *testing.T) {
+	worker := newWorker(1, nil, nil, nil, config.Config{})
+	job := Job{}
+
+	request, err := worker.createRequest(job)
+	if err != nil {
+		t.Fatal("failed to create request: %v\n", err)
+	}
+
+
 
 }
 
