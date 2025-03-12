@@ -23,6 +23,21 @@ type Worker struct {
 	Config  config.Config
 }
 
+type watcher interface {
+	watch(context.Context, *sync.WaitGroup)
+}
+
+type jobExecutor interface {
+	processJob(Job)
+	initializeResult(Job, time.Time) report.Result
+	processResponse(report.Result, *http.Response, time.Time, time.Time, Job, int)
+}
+
+type requestProcessor interface {
+	createRequest(Job) (*http.Request, error)
+	setHeaders(*http.Request)
+}
+
 type Job struct {
 	ID     int
 	Host   string
@@ -30,8 +45,10 @@ type Job struct {
 	Body   string
 }
 
+type WorkerFactory func(i int, jobs <-chan Job, results chan<- report.Result, client *http.Client, cfg config.Config) Worker
+
 // Create a new worker instance
-func newWorker(id int, jobs <-chan Job, results chan<- report.Result, client *http.Client, cfg config.Config) *Worker {
+func NewWorker(id int, jobs <-chan Job, results chan<- report.Result, client *http.Client, cfg config.Config) *Worker {
 	return &Worker{
 		ID:      id,
 		Jobs:    jobs,
@@ -41,14 +58,14 @@ func newWorker(id int, jobs <-chan Job, results chan<- report.Result, client *ht
 	}
 }
 
-// Worker loop for processing jobs
+// worker loop for processing jobs
 func (w *Worker) watch(ctx context.Context, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	for {
 		select {
 		case <-ctx.Done():
-			w.Config.Logger.Info("Worker %d shutting down", w.ID)
+			w.Config.Logger.Info("worker %d shutting down", w.ID)
 			return
 		case job, ok := <-w.Jobs:
 			if !ok {
@@ -61,7 +78,7 @@ func (w *Worker) watch(ctx context.Context, wg *sync.WaitGroup) {
 
 // Process a single job
 func (w *Worker) processJob(job Job) {
-	w.Config.Logger.Debug("Worker %d: Starting job for %s with method %s", w.ID, job.Host, job.Method)
+	w.Config.Logger.Debug("worker %d: Starting job for %s with method %s", w.ID, job.Host, job.Method)
 	req, err := w.createRequest(job)
 	if err != nil {
 		w.handleRequestError(job, err)
@@ -91,7 +108,7 @@ func (w *Worker) processJob(job Job) {
 }
 
 // todo: create a comment for this function
-func Work(ctx context.Context, cfg config.Config, jobs []Job, reportChan chan<- report.Report) {
+func Work(ctx context.Context, cfg config.Config, jobs []Job, reportChan chan<- report.Report, factory WorkerFactory) {
 	client, err := client.NewClient(cfg)
 	if err != nil {
 		cfg.Logger.Error("Error creating HTTP client: %v", err)
@@ -106,7 +123,7 @@ func Work(ctx context.Context, cfg config.Config, jobs []Job, reportChan chan<- 
 
 	cfg.Logger.Info("Starting worker pool with %d workers", numWorkers)
 	for i := 0; i < numWorkers; i++ {
-		worker := newWorker(i, jobChan, resultChan, client, cfg)
+		worker := factory(i, jobChan, resultChan, client, cfg)
 		wg.Add(1)
 		go worker.watch(ctx, wg)
 	}
@@ -192,7 +209,7 @@ func processResults(cfg config.Config, resultChan <-chan report.Result) report.R
 func (w *Worker) createRequest(job Job) (*http.Request, error) {
 	req, err := http.NewRequest(job.Method, job.Host, bytes.NewReader([]byte(job.Body)))
 	if err != nil {
-		w.Config.Logger.Error("Worker %d: Failed to create request for %s: %v", w.ID, job.Host, err)
+		w.Config.Logger.Error("worker %d: Failed to create request for %s: %v", w.ID, job.Host, err)
 	}
 	return req, err
 }
@@ -202,7 +219,7 @@ func (w *Worker) setHeaders(req *http.Request) {
 	for _, h := range w.Config.ParsedHeaders {
 		req.Header.Add(h.Key, h.Value)
 	}
-	w.Config.Logger.Debug("Worker %d: Request headers set: %v", w.ID, req.Header)
+	w.Config.Logger.Debug("worker %d: Request headers set: %v", w.ID, req.Header)
 }
 
 // Initialize the result object
@@ -218,7 +235,7 @@ func (w *Worker) initializeResult(job Job, start time.Time) report.Result {
 // Process the HTTP response
 func (w *Worker) processResponse(result report.Result, resp *http.Response, start time.Time, end time.Time, job Job, bytesSent int) {
 	if resp == nil {
-		w.Config.Logger.Error("Worker %d: No response received for %s", w.ID, job.Host)
+		w.Config.Logger.Error("worker %d: No response received for %s", w.ID, job.Host)
 		result.Error = fmt.Errorf("no response received")
 		result.EndTime = end
 		result.ElapsedTime = result.EndTime.Sub(start)
@@ -228,7 +245,7 @@ func (w *Worker) processResponse(result report.Result, resp *http.Response, star
 
 	bytesReceived, err := httputil.DumpResponse(resp, true)
 	if err != nil {
-		w.Config.Logger.Error("Worker %d: Failed to dump response from %s: %v", w.ID, job.Host, err)
+		w.Config.Logger.Error("worker %d: Failed to dump response from %s: %v", w.ID, job.Host, err)
 		result.Error = err
 		result.EndTime = time.Now()
 		result.ElapsedTime = result.EndTime.Sub(start)
@@ -238,12 +255,12 @@ func (w *Worker) processResponse(result report.Result, resp *http.Response, star
 
 	result.BytesReceived = len(bytesReceived)
 	result.BytesSent = bytesSent
-	w.Config.Logger.Debug("Worker %d: Received %d bytes from %s", w.ID, result.BytesReceived, job.Host)
+	w.Config.Logger.Debug("worker %d: Received %d bytes from %s", w.ID, result.BytesReceived, job.Host)
 
 	result.EndTime = end
 	result.ElapsedTime = result.EndTime.Sub(start)
 	result.ResultCode = resp.StatusCode
 
-	w.Config.Logger.Debug("Worker %d: Completed job for %s with status %d in %s", w.ID, job.Host, result.ResultCode, result.ElapsedTime)
+	w.Config.Logger.Debug("worker %d: Completed job for %s with status %d in %s", w.ID, job.Host, result.ResultCode, result.ElapsedTime)
 	w.Results <- result
 }

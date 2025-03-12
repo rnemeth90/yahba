@@ -10,12 +10,12 @@ import (
 
 func (w *Worker) handleClientError(job Job, result report.Result, resp *http.Response, err error, start time.Time, end time.Time) {
 	if urlErr, ok := err.(*url.Error); ok && urlErr.Timeout() {
-		w.Config.Logger.Warn("Worker %d: Request to %s timed out", w.ID, job.Host)
+		w.Config.Logger.Warn("worker %d: Request to %s timed out", w.ID, job.Host)
 		result.Timeout = true
 		result.ResultCode = http.StatusRequestTimeout
 		// urlErr.Unwrap()
 	} else {
-		w.Config.Logger.Error("Worker %d: Request to %s failed: %v", w.ID, job.Host, err)
+		w.Config.Logger.Error("worker %d: Request to %s failed: %v", w.ID, job.Host, err)
 	}
 
 	result.Error = err
