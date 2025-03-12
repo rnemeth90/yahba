@@ -24,6 +24,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -114,8 +115,12 @@ func run(ctx context.Context, c config.Config) error {
 		jobs[i] = worker.Job{ID: i, Host: c.URL, Method: c.Method, Body: c.Body}
 	}
 
+	factory := func(id int, jobChan <-chan worker.Job, resultChan chan<- report.Result, client *http.Client, cfg config.Config) worker.Worker {
+		return *worker.NewWorker(id, jobChan, resultChan, client, cfg)
+	}
+
 	reportChan := make(chan report.Report, c.Requests)
-	go worker.Work(ctx, c, jobs, reportChan)
+	go worker.Work(ctx, c, jobs, reportChan, factory)
 
 	select {
 	case <-ctx.Done():
