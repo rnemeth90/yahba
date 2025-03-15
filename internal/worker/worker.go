@@ -45,7 +45,7 @@ type Job struct {
 	Body   string
 }
 
-type WorkerFactory func(i int, jobs <-chan Job, results chan<- report.Result, client *http.Client, cfg config.Config) Worker
+type WorkerFactory func(id int, jobs <-chan Job, results chan<- report.Result, client *http.Client, cfg config.Config) Worker
 
 // Create a new worker instance
 func NewWorker(id int, jobs <-chan Job, results chan<- report.Result, client *http.Client, cfg config.Config) *Worker {
