@@ -19,14 +19,8 @@ func mockServer() *httptest.Server {
 
 func TestNewWorker(t *testing.T) {
 	w := NewWorker(1, nil, nil, nil, config.Config{})
-	if w == nil {
-		t.Error("Expected worker to not be nil")
-	}
-
-	// Check worker ID
-	if w.ID != 1 {
-		t.Errorf("Expected worker ID to be 1, got %d", w.ID)
-	}
+	assert.NotNil(t, w)
+	assert.Equal(t, w.ID, 1)
 }
 
 func TestCreateRequest(t *testing.T) {
@@ -46,4 +40,28 @@ func TestCreateRequest(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, req.Method, "GET")
 	assert.Equal(t, req.URL.String(), "http://example.com")
+}
+
+func TestProcessJob(t *testing.T) {
+	mockConfig := config.Config{}
+	mockClient := http.Client{}
+	worker := NewWorker(1, nil, nil, &mockClient, mockConfig)
+
+	job := Job{
+		ID:     1,
+		Host:   mockServer().URL,
+		Method: "GET",
+		Body:   "",
+	}
+
+	req, err := http.NewRequest(job.Method, job.Host, nil)
+	assert.NoError(t, err)
+
+	worker.setHeaders(req)
+
+	resp, err := worker.Client.Do(req)
+	assert.NoError(t, err)
+
+	assert.Equal(t, resp.StatusCode, http.StatusOK)
+	defer resp.Body.Close()
 }
