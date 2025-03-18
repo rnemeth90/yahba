@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/rnemeth90/yahba/internal/config"
+	"github.com/rnemeth90/yahba/internal/util"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -64,4 +65,27 @@ func TestProcessJob(t *testing.T) {
 
 	assert.Equal(t, resp.StatusCode, http.StatusOK)
 	defer resp.Body.Close()
+}
+
+func TestSetHeaders(t *testing.T) {
+	mockConfig := config.Config{}
+	var err error
+	mockConfig.ParsedHeaders, err = util.ParseHeaders("Content-Type: application/json")
+	assert.NoError(t, err)
+	mockClient := http.Client{}
+	worker := NewWorker(1, nil, nil, &mockClient, mockConfig)
+
+	job := Job{
+		ID:     1,
+		Host:   "http://example.com",
+		Method: "GET",
+		Body:   "",
+	}
+
+	req, err := http.NewRequest(job.Method, job.Host, nil)
+	assert.NoError(t, err)
+
+	worker.setHeaders(req)
+
+	assert.Equal(t, req.Header.Get("Content-Type"), "application/json")
 }
