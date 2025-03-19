@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/rnemeth90/yahba/internal/config"
 	"github.com/rnemeth90/yahba/internal/util"
@@ -88,4 +89,26 @@ func TestSetHeaders(t *testing.T) {
 	worker.setHeaders(req)
 
 	assert.Equal(t, req.Header.Get("Content-Type"), "application/json")
+}
+
+func TestInitializeResult(t *testing.T) {
+	mockConfig := config.Config{}
+	mockClient := http.Client{}
+	worker := NewWorker(1, nil, nil, &mockClient, mockConfig)
+
+	job := Job{
+		ID:     1,
+		Host:   "http://example.com",
+		Method: "GET",
+		Body:   "",
+	}
+
+	ti := time.Now()
+	result := worker.initializeResult(job, ti)
+
+	assert.Equal(t, result.WorkerID, worker.ID)
+	assert.Equal(t, result.TargetURL, job.Host)
+	assert.Equal(t, result.Method, job.Method)
+	assert.Equal(t, result.StartTime, ti)
+	assert.NoError(t, result.Error)
 }
