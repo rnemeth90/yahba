@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/rnemeth90/yahba/internal/config"
+	"github.com/rnemeth90/yahba/internal/logger"
 	"github.com/rnemeth90/yahba/internal/util"
 	"github.com/stretchr/testify/assert"
 )
@@ -26,7 +27,9 @@ func TestNewWorker(t *testing.T) {
 }
 
 func TestCreateRequest(t *testing.T) {
-	mockConfig := config.Config{}
+	mockConfig := config.Config{
+		Logger: logger.New("error", "stdout", false),
+	}
 	mockClient := http.Client{}
 	worker := NewWorker(1, nil, nil, &mockClient, mockConfig)
 
@@ -45,7 +48,9 @@ func TestCreateRequest(t *testing.T) {
 }
 
 func TestProcessJob(t *testing.T) {
-	mockConfig := config.Config{}
+	mockConfig := config.Config{
+		Logger: logger.New("error", "stdout", false),
+	}
 	mockClient := http.Client{}
 	worker := NewWorker(1, nil, nil, &mockClient, mockConfig)
 
@@ -69,7 +74,9 @@ func TestProcessJob(t *testing.T) {
 }
 
 func TestSetHeaders(t *testing.T) {
-	mockConfig := config.Config{}
+	mockConfig := config.Config{
+		Logger: logger.New("error", "stdout", false),
+	}
 	var err error
 	mockConfig.ParsedHeaders, err = util.ParseHeaders("Content-Type: application/json")
 	assert.NoError(t, err)
@@ -92,7 +99,9 @@ func TestSetHeaders(t *testing.T) {
 }
 
 func TestInitializeResult(t *testing.T) {
-	mockConfig := config.Config{}
+	mockConfig := config.Config{
+		Logger: logger.New("error", "stdout", false),
+	}
 	mockClient := http.Client{}
 	worker := NewWorker(1, nil, nil, &mockClient, mockConfig)
 
