@@ -28,15 +28,16 @@
 #### In Progress
 - [ ] **Implement Tests**: Write and execute tests for the project.
       - [x] **client package**: Add tests for the client package.
-      - [ ] **config package**: Add tests for the config package.
-      - [ ] **logger package**: Add tests for the logger.
-      - [ ] **report package**: Add tests for the report package.
+      - [x] **config package**: Add tests for the config package.
+      - [x] **logger package**: Add tests for the logger.
+      - [x] **report package**: Add tests for the report package.
       - [ ] **server package**: Add tests for the server package.
       - [ ] **worker package**: Add tests for the worker package.
-      - [ ] **util package**: Add tests for the util package.
+      - [x] **util package**: Add tests for the util package.
 
 #### Pending Tasks
 
+- [ ] **Fix sleep parameter**: Sleep is not currently implemented, but still exposed as a parameter
 - [ ] **Remove Commented Code**: Clean up any unused or commented-out code.
 - [ ] **Progress Bar**: Add a progress bar for visual feedback.
 - [ ] **Test Server**: Build a test server for simulations.
