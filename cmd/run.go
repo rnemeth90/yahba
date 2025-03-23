@@ -83,7 +83,7 @@ func init() {
 	runCmd.PersistentFlags().StringVar(&c.ProxyPassword, "proxy-password", "", "Proxy authentication password")
 	runCmd.PersistentFlags().IntVarP(&c.Sleep, "sleep", "s", 1, "Sleep time (throttles requests)")
 	runCmd.PersistentFlags().BoolVar(&c.SkipDNS, "skip-dns", false, "Skip DNS resolution (requires direct IP)")
-	runCmd.PersistentFlags().StringVar(&c.OutputFormat, "output-format", "raw", "Output format (json, yaml, raw)")
+	runCmd.PersistentFlags().StringVarP(&c.OutputFormat, "format", "f", "raw", "Output format (json, yaml, raw)")
 	runCmd.PersistentFlags().StringVar(&c.OutputFile, "out", "stdout", "Output file (default: stdout)")
 	runCmd.PersistentFlags().StringVar(&c.FileName, "filename", "", "Specify a file name when using --out file")
 	runCmd.PersistentFlags().BoolVar(&c.Server, "server", false, "Start a test server")
