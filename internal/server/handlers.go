@@ -1,11 +1,15 @@
 package server
 
 import (
-	"fmt"
 	"net/http"
+
+	"github.com/rnemeth90/yahba/internal/logger"
 )
 
 func testHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("Hello")
+	logger := logger.New("debug", "stdout", false)
+	logger.Info("Hello sent")
 	w.WriteHeader(http.StatusOK)
 }
+
+
