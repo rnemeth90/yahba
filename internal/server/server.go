@@ -6,14 +6,17 @@ import (
 	"github.com/rnemeth90/yahba/internal/logger"
 )
 
-func Run(port string) error {
-	l := logger.New("debug", "stdout", false)
+type Server struct {
+	Config *Config
+	Logger *logger.Logger
+}
 
+func (s *Server) Run() error {
 	http.HandleFunc("/test", testHandler)
 
-	if port != "" {
-		l.Debug("Starting server on port ", port)
-		return http.ListenAndServe(port, nil)
+	if s.Config.Port != "" {
+		s.Logger.Debug("Starting server on port ", s.Config.Port)
+		return http.ListenAndServe(s.Config.Port, nil)
 	}
 
 	return ErrInvalidPort
