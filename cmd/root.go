@@ -38,8 +38,7 @@ var rootCmd = &cobra.Command{
 	Long: `Yet Another HTTP Benchmark Application (YAHBA)
 A fast, customizable HTTP load tester.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("Error: No command specified. Use 'yahba test' or 'yahba --help' for usage information.")
-		os.Exit(1)
+		cmd.Help()
 	},
 }
 
