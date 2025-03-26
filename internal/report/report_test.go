@@ -18,8 +18,6 @@ func TestCalculateLatencyMetrics(t *testing.T) {
 		},
 		TotalRequests: 5,
 	}
-
-	// Calculate latency metrics
 	report.CalculateLatencyMetrics()
 
 	// Assertions

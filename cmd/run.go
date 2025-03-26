@@ -24,6 +24,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -58,7 +59,7 @@ var runCmd = &cobra.Command{
 		c.Logger.Debug("Starting YAHBA")
 		if err := run(ctx, c); err != nil {
 			c.Logger.Error("Application encountered a critical error: %v", err)
-			os.Exit(1)
+			return
 		}
 	},
 }
@@ -82,7 +83,7 @@ func init() {
 	runCmd.PersistentFlags().StringVar(&c.ProxyPassword, "proxy-password", "", "Proxy authentication password")
 	runCmd.PersistentFlags().IntVarP(&c.Sleep, "sleep", "s", 1, "Sleep time (throttles requests)")
 	runCmd.PersistentFlags().BoolVar(&c.SkipDNS, "skip-dns", false, "Skip DNS resolution (requires direct IP)")
-	runCmd.PersistentFlags().StringVar(&c.OutputFormat, "output-format", "raw", "Output format (json, yaml, raw)")
+	runCmd.PersistentFlags().StringVarP(&c.OutputFormat, "format", "f", "raw", "Output format (json, yaml, raw)")
 	runCmd.PersistentFlags().StringVar(&c.OutputFile, "out", "stdout", "Output file (default: stdout)")
 	runCmd.PersistentFlags().StringVar(&c.FileName, "filename", "", "Specify a file name when using --out file")
 	runCmd.PersistentFlags().BoolVar(&c.Server, "server", false, "Start a test server")
@@ -91,35 +92,37 @@ func init() {
 func run(ctx context.Context, c config.Config) error {
 	c.Logger.Debug("Validating configuration")
 	if err := c.Validate(); err != nil {
-		c.Logger.Error("Configuration validation failed: %v", err)
 		return err
 	}
-	c.Logger.Info("Configuration validated successfully")
+	c.Logger.Debug("Configuration validated successfully")
 
-	// todo: do we need to parse headers here? why?
+	// todo: do we need to parse headers HERE? why?
 	if c.Headers != "" {
 		c.Logger.Debug("Parsing headers: %s", c.Headers)
 		parsedHeaders, err := util.ParseHeaders(c.Headers)
 		if err != nil {
-			c.Logger.Error("Error parsing headers: %v", err)
 			return fmt.Errorf("error parsing headers: %w", err)
 		}
 		c.ParsedHeaders = parsedHeaders
 	}
 
 	// todo: do we need to create individual jobs if the jobs are all the same?
-	c.Logger.Info("Creating %d jobs for requests to %s", c.Requests, c.URL)
+	c.Logger.Debug("Creating %d jobs for requests to %s", c.Requests, c.URL)
 	jobs := make([]worker.Job, c.Requests)
 	for i := 0; i < c.Requests; i++ {
 		jobs[i] = worker.Job{ID: i, Host: c.URL, Method: c.Method, Body: c.Body}
 	}
 
+	factory := func(id int, jobChan <-chan worker.Job, resultChan chan<- report.Result, client *http.Client, cfg config.Config) worker.Worker {
+		return *worker.NewWorker(id, jobChan, resultChan, client, cfg)
+	}
+
 	reportChan := make(chan report.Report, c.Requests)
-	go worker.Work(ctx, c, jobs, reportChan)
+	go worker.Work(ctx, c, jobs, reportChan, factory)
 
 	select {
 	case <-ctx.Done():
-		c.Logger.Info("Shutdown signal received. Cleaning up.")
+		c.Logger.Debug("Shutdown signal received. Cleaning up.")
 		return nil
 	case r := <-reportChan:
 		return generateReport(c, r)
@@ -127,7 +130,7 @@ func run(ctx context.Context, c config.Config) error {
 }
 
 func generateReport(c config.Config, r report.Report) error {
-	c.Logger.Info("Generating report in %s format", c.OutputFormat)
+	c.Logger.Debug("Generating report in %s format", c.OutputFormat)
 
 	var reportOutput string
 	var err error
@@ -142,11 +145,10 @@ func generateReport(c config.Config, r report.Report) error {
 	}
 
 	if err != nil {
-		c.Logger.Error("Error generating report: %v", err)
-		return err
+		return fmt.Errorf("error generating report: %w", err)
 	}
 
-	c.Logger.Info("Report generated successfully")
+	c.Logger.Debug("Report generated successfully")
 	fmt.Fprintln(c.Logger.Writer(), reportOutput)
 	return nil
 }
@@ -155,5 +157,5 @@ func cleanup(logger *logger.Logger, channels ...chan any) {
 	for _, ch := range channels {
 		close(ch)
 	}
-	logger.Info("Cleanup complete")
+	logger.Debug("Cleanup complete")
 }

@@ -7,25 +7,25 @@ OBJECTS = $(patsubst $(COMMAND_NAME)-windows-amd64%,$(COMMAND_NAME)-windows-amd6
 release: format createbuilddir check-env $(OBJECTS) ## Build release binaries (requires VERSION)
 
 clean: check-env ## Remove release binaries
-        rm -rf build
+	rm -rf build
 
 format:
-        gofmt -w -s src/**/*.go
+	go fmt -w -s src/**/*.go
 
 createbuilddir:
-        mkdir -p build/bin
+	mkdir -p build/bin
 
 $(OBJECTS): $(wildcard src/cmd//*.go)
-        env GOOS=$(echo $@ | cut -d'-' -f2) GOARCH=$(echo $/github.com/rnemeth90/yahba | cut -d'-' -f3 | cut -d'.' -f 1) go build -o build/bin/$@ $(LDFLAGS) $(PACKAGE_NAME)
+	env GOOS=$(echo $@ | cut -d'-' -f2) GOARCH=$(echo $/github.com/rnemeth90/yahba | cut -d'-' -f3 | cut -d'.' -f 1) go build -o build/bin/$@ $(LDFLAGS) $(PACKAGE_NAME)
 
 .PHONY: help check-env
 
 check-env:
 ifndef VERSION
-        $(error VERSION is undefined)
+	$(error VERSION is undefined)
 endif
 
 help:
-        @grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $/github.com/rnemeth90/yahba, $}'
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $/github.com/rnemeth90/yahba, $}'
 
 .DEFAULT_GOAL := help

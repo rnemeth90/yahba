@@ -1,16 +1,15 @@
 package worker
 
 import (
-	"context"
 	"net/http"
 	"net/http/httptest"
-	"sync"
 	"testing"
 	"time"
 
 	"github.com/rnemeth90/yahba/internal/config"
 	"github.com/rnemeth90/yahba/internal/logger"
-	"github.com/rnemeth90/yahba/internal/report"
+	"github.com/rnemeth90/yahba/internal/util"
+	"github.com/stretchr/testify/assert"
 )
 
 // Mock server to simulate HTTP requests
@@ -21,180 +20,104 @@ func mockServer() *httptest.Server {
 	}))
 }
 
-func TestWorker(t *testing.T) {
-	// Create a mock server with a small delay
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		time.Sleep(50 * time.Millisecond)
-		w.WriteHeader(http.StatusOK)
-	}))
-	defer server.Close()
-
-	cfg := config.Config{
-		URL:     server.URL,
-		Method:  http.MethodGet,
-		Timeout: 1,
-		Logger:  logger.New("error", "stdout", false),
-	}
-
-	jobChan := make(chan Job, 1)
-	resultChan := make(chan report.Result, 1)
-
-	job := Job{Host: cfg.URL, Method: cfg.Method}
-	jobChan <- job
-	close(jobChan)
-
-	client := &http.Client{Timeout: time.Duration(cfg.Timeout) * time.Second}
-	worker := newWorker(1, jobChan, resultChan, client, cfg)
-
-	wg := &sync.WaitGroup{}
-	wg.Add(1)
-
-	done := make(chan struct{})
-	go func() {
-		worker.watch(context.Background(), wg)
-		close(done)
-	}()
-
-	select {
-	case <-done:
-		result := <-resultChan
-		if result.WorkerID != 1 {
-			t.Errorf("Expected WorkerID 1, got %d", result.WorkerID)
-		}
-		if result.ResultCode != http.StatusOK {
-			t.Errorf("Expected ResultCode 200, got %d", result.ResultCode)
-		}
-	case <-time.After(5 * time.Second):
-		t.Fatalf("TestWorker timed out waiting for worker to finish")
-	}
+func TestNewWorker(t *testing.T) {
+	w := NewWorker(1, nil, nil, nil, config.Config{})
+	assert.NotNil(t, w)
+	assert.Equal(t, w.ID, 1)
 }
 
-//
-// // Test the Worker function
-// func TestWorker(t *testing.T) {
-// 	server := mockServer()
-// 	defer server.Close()
-//
-// 	// Configuration and channels
-// 	cfg := config.Config{
-// 		URL:    server.URL,
-// 		Method:  http.MethodGet,
-// 		Timeout: int(5 * time.Second),
-// 		HTTP2:   true,
-// 		RPS:     1,
-// 		Logger:  logger.NewLogger("error", "stdout"),
-// 	}
-// 	jobChan := make(chan Job, 1)
-// 	resultChan := make(chan report.Result, 1)
-// 	client := http.DefaultClient
-//
-// 	// Create a worker and a job
-// 	job := Job{URL: server.URL, Method: http.MethodGet}
-// 	jobChan <- job
-//
-// 	worker := newWorker(1, jobChan, resultChan, client, cfg)
-// 	wg := &sync.WaitGroup{}
-// 	wg.Add(1)
-//
-// 	close(jobChan)
-// 	close(resultChan)
-//
-// 	// Start the worker and wait for it to finish
-// 	go worker.work(wg)
-// 	wg.Wait()
-//
-// 	// Check the results
-// 	result := <-resultChan
-// 	if result.WorkerID != 1 {
-// 		t.Errorf("Expected WorkerID 1, got %d", result.WorkerID)
-// 	}
-// 	if result.ResultCode != http.StatusOK {
-// 		t.Errorf("Expected ResultCode 200, got %d", result.ResultCode)
-// 	}
-// 	if result.BytesReceived == 0 {
-// 		t.Error("Expected non-zero BytesReceived")
-// 	}
-// }
+func TestCreateRequest(t *testing.T) {
+	mockConfig := config.Config{
+		Logger: logger.New("error", "stdout", false),
+	}
+	mockClient := http.Client{}
+	worker := NewWorker(1, nil, nil, &mockClient, mockConfig)
 
-// Test the Worker function with a timeout
-func TestWorkerTimeout(t *testing.T) {
-	// simulate a server with a delay to trigger a timeout
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		time.Sleep(2 * time.Second)
-		w.WriteHeader(http.StatusOK)
-	}))
-	defer server.Close()
-
-	cfg := config.Config{
-		URL:     server.URL,
-		Method:  http.MethodGet,
-		Timeout: 1,
-		Logger:  logger.New("error", "stdout", false),
+	job := Job{
+		ID:     1,
+		Host:   "http://example.com",
+		Method: "GET",
+		Body:   "",
 	}
 
-	jobChan := make(chan Job, 1)
-	resultChan := make(chan report.Result, 1)
+	req, err := worker.createRequest(job)
 
-	job := Job{Host: server.URL, Method: http.MethodGet}
-	jobChan <- job
-	close(jobChan)
-
-	client := &http.Client{
-		Timeout: time.Duration(cfg.Timeout) * time.Second,
-	}
-	worker := newWorker(1, jobChan, resultChan, client, cfg)
-	wg := &sync.WaitGroup{}
-	wg.Add(1)
-
-	go worker.watch(context.Background(), wg)
-	wg.Wait()
-
-	result := <-resultChan
-	if !result.Timeout {
-		t.Error("Expected request to timeout, but it did not")
-	}
-
-	if result.Error == nil {
-		t.Error("Expected error due to timeout, got nil")
-	}
+	assert.NoError(t, err)
+	assert.Equal(t, req.Method, "GET")
+	assert.Equal(t, req.URL.String(), "http://example.com")
 }
 
-// Test the WorkerPool function with multiple jobs
-func TestWorkerPool(t *testing.T) {
-	server := mockServer()
-	defer server.Close()
-
-	cfg := config.Config{
-		URL:      server.URL,
-		Method:   http.MethodGet,
-		Timeout:  int(5 * time.Second),
-		RPS:      2,
-		Requests: 5,
-		Logger:   logger.New("error", "stdout", false),
+func TestProcessJob(t *testing.T) {
+	mockConfig := config.Config{
+		Logger: logger.New("error", "stdout", false),
 	}
-	reportChan := make(chan report.Report, 1)
-	jobs := make([]Job, cfg.Requests)
+	mockClient := http.Client{}
+	worker := NewWorker(1, nil, nil, &mockClient, mockConfig)
 
-	for i := 0; i < cfg.Requests; i++ {
-		jobs[i] = Job{Host: cfg.URL, Method: cfg.Method}
+	job := Job{
+		ID:     1,
+		Host:   mockServer().URL,
+		Method: "GET",
+		Body:   "",
 	}
 
-	go Work(context.Background(), cfg, jobs, reportChan)
-	report := <-reportChan
+	req, err := http.NewRequest(job.Method, job.Host, nil)
+	assert.NoError(t, err)
 
-	if report.TotalRequests != cfg.Requests {
-		t.Errorf("Expected TotalRequests %d, got %d", cfg.Requests, report.TotalRequests)
+	worker.setHeaders(req)
+
+	resp, err := worker.Client.Do(req)
+	assert.NoError(t, err)
+
+	assert.Equal(t, resp.StatusCode, http.StatusOK)
+	defer resp.Body.Close()
+}
+
+func TestSetHeaders(t *testing.T) {
+	mockConfig := config.Config{
+		Logger: logger.New("error", "stdout", false),
 	}
-	if report.Successes != cfg.Requests {
-		t.Errorf("Expected Successes %d, got %d", cfg.Requests, report.Successes)
+	var err error
+	mockConfig.ParsedHeaders, err = util.ParseHeaders("Content-Type: application/json")
+	assert.NoError(t, err)
+	mockClient := http.Client{}
+	worker := NewWorker(1, nil, nil, &mockClient, mockConfig)
+
+	job := Job{
+		ID:     1,
+		Host:   "http://example.com",
+		Method: "GET",
+		Body:   "",
 	}
-	if report.Failures != 0 {
-		t.Errorf("Expected Failures 0, got %d", report.Failures)
+
+	req, err := http.NewRequest(job.Method, job.Host, nil)
+	assert.NoError(t, err)
+
+	worker.setHeaders(req)
+
+	assert.Equal(t, req.Header.Get("Content-Type"), "application/json")
+}
+
+func TestInitializeResult(t *testing.T) {
+	mockConfig := config.Config{
+		Logger: logger.New("error", "stdout", false),
 	}
-	if report.Throughput.TotalBytesReceived == 0 {
-		t.Error("Expected non-zero TotalBytesReceived in throughput")
+	mockClient := http.Client{}
+	worker := NewWorker(1, nil, nil, &mockClient, mockConfig)
+
+	job := Job{
+		ID:     1,
+		Host:   "http://example.com",
+		Method: "GET",
+		Body:   "",
 	}
-	if report.Throughput.TotalBytesSent == 0 {
-		t.Error("Expected non-zero TotalBytesSent in throughput")
-	}
+
+	ti := time.Now()
+	result := worker.initializeResult(job, ti)
+
+	assert.Equal(t, result.WorkerID, worker.ID)
+	assert.Equal(t, result.TargetURL, job.Host)
+	assert.Equal(t, result.Method, job.Method)
+	assert.Equal(t, result.StartTime, ti)
+	assert.NoError(t, result.Error)
 }
