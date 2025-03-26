@@ -2,6 +2,7 @@ package client
 
 import (
 	"crypto/tls"
+	"net"
 	"net/http"
 	"net/url"
 	"time"
@@ -24,10 +25,25 @@ func NewClient(cfg config.Config) (*http.Client, error) {
 
 	var transport http.RoundTripper
 	if cfg.HTTP2 {
-		transport = &http2.Transport{
-			DisableCompression: cfg.Compression,
-			TLSClientConfig:    &tls.Config{InsecureSkipVerify: cfg.Insecure},
-			IdleConnTimeout:    time.Duration(cfg.Timeout) * time.Second,
+		if cfg.ReuseConnections {
+			transport = &http2.Transport{
+				DisableCompression: cfg.Compression,
+				TLSClientConfig:    &tls.Config{InsecureSkipVerify: cfg.Insecure},
+				IdleConnTimeout:    time.Duration(cfg.Timeout) * time.Second,
+			}
+		} else {
+			transport = &http2.Transport{
+				DisableCompression: cfg.Compression,
+				TLSClientConfig:    &tls.Config{InsecureSkipVerify: cfg.Insecure},
+				IdleConnTimeout:    time.Duration(cfg.Timeout) * time.Second,
+				DialTLS: func(network, addr string, cfg *tls.Config) (net.Conn, error) {
+					tcpConn, err := net.Dial(network, addr)
+					if err != nil {
+						return nil, err
+					}
+					return tls.Client(tcpConn, cfg), nil
+				},
+			}
 		}
 	} else {
 		tr := &http.Transport{

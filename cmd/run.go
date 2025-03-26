@@ -87,6 +87,7 @@ func init() {
 	runCmd.PersistentFlags().StringVar(&c.OutputFile, "out", "stdout", "Output file (default: stdout)")
 	runCmd.PersistentFlags().StringVar(&c.FileName, "filename", "", "Specify a file name when using --out file")
 	runCmd.PersistentFlags().BoolVar(&c.Server, "server", false, "Start a test server")
+	runCmd.PersistentFlags().BoolVarP(&c.ReuseConnections, "reuse-connections", "R", false, "Multiplex connections, only works with HTTP2")
 }
 
 func run(ctx context.Context, c config.Config) error {

@@ -14,33 +14,34 @@ import (
 
 // Config holds the configuration for the load test
 type Config struct {
-	URL           string
-	Method        string
-	Headers       string
-	Body          string
-	Timeout       int
-	RPS           int
-	Requests      int
-	Insecure      bool
-	Resolver      string
-	KeepAlive     bool
-	HTTP2         bool
-	HTTP3         bool
-	LogLevel      string
-	Logger        *logger.Logger
-	RawOutput     bool
-	Compression   bool
-	Proxy         string
-	ProxyUser     string
-	ProxyPassword string
-	ParsedHeaders []util.Header
-	Sleep         int
-	SkipDNS       bool
-	OutputFile    string
-	OutputFormat  string
-	FileName      string
-	Silent        bool
-	Server        bool
+	URL              string
+	Method           string
+	Headers          string
+	Body             string
+	Timeout          int
+	RPS              int
+	Requests         int
+	Insecure         bool
+	Resolver         string
+	KeepAlive        bool
+	HTTP2            bool
+	HTTP3            bool
+	LogLevel         string
+	Logger           *logger.Logger
+	RawOutput        bool
+	Compression      bool
+	Proxy            string
+	ProxyUser        string
+	ProxyPassword    string
+	ParsedHeaders    []util.Header
+	Sleep            int
+	SkipDNS          bool
+	OutputFile       string
+	OutputFormat     string
+	FileName         string
+	Silent           bool
+	Server           bool
+	ReuseConnections bool
 }
 
 var validHTTPMethods = []string{"GET", "HEAD", "PUT", "POST"}
