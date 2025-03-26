@@ -22,9 +22,12 @@ THE SOFTWARE.
 package cmd
 
 import (
+	"github.com/rnemeth90/yahba/internal/logger"
 	"github.com/rnemeth90/yahba/internal/server"
 	"github.com/spf13/cobra"
 )
+
+var serverConfig server.Config
 
 // serverCmd represents the server command
 var serverCmd = &cobra.Command{
@@ -37,7 +40,11 @@ Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		if err := server.Run(":8081"); err != nil {
+		server := server.Server{
+			Config: &serverConfig,
+			Logger: logger.New("debug", "stdout", false),
+		}
+		if err := server.Run(); err != nil {
 			panic(err)
 		}
 	},
@@ -45,14 +52,5 @@ to quickly create a Cobra application.`,
 
 func init() {
 	rootCmd.AddCommand(serverCmd)
-
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// serverCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// serverCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	serverCmd.PersistentFlags().StringVarP(&serverConfig.Port, "port", "p", ":8081", "port to run the server on")
 }
