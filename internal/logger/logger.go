@@ -20,7 +20,6 @@ type Logger struct {
 	*log.Logger
 }
 
-// TODO: Create a comment for this function
 func New(level string, destination string, silent bool) *Logger {
 	l := &Logger{
 		Silent: silent,
@@ -51,7 +50,7 @@ func (l *Logger) logOutput(level string, message string, v ...any) {
 
 	// Format message and arguments
 	formattedMessage := fmt.Sprintf(message, v...)
-	l.Logger.Output(2, fmt.Sprintf("%s %s", level, formattedMessage))
+	l.Logger.Output(2, fmt.Sprintf("%v %s", level, formattedMessage))
 }
 
 // Log debug, info, warn, and error messages
