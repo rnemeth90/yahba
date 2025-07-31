@@ -25,37 +25,13 @@ func NewClient(cfg config.Config) (*http.Client, error) {
 
 	var transport http.RoundTripper
 	if cfg.HTTP2 {
-		if cfg.ReuseConnections {
-			transport = &http2.Transport{
-				DisableCompression: cfg.Compression,
-				TLSClientConfig:    &tls.Config{InsecureSkipVerify: cfg.Insecure},
-				IdleConnTimeout:    time.Duration(cfg.Timeout) * time.Second,
-			}
-		} else {
-			transport = &http2.Transport{
-				DisableCompression: cfg.Compression,
-				TLSClientConfig:    &tls.Config{InsecureSkipVerify: cfg.Insecure},
-				IdleConnTimeout:    time.Duration(cfg.Timeout) * time.Second,
-				DialTLS: func(network, addr string, cfg *tls.Config) (net.Conn, error) {
-					tcpConn, err := net.Dial(network, addr)
-					if err != nil {
-						return nil, err
-					}
-					return tls.Client(tcpConn, cfg), nil
-				},
-			}
+		tr, err := setupHTTP2Transport(cfg)
+		if err != nil {
+			return nil, err
 		}
+		transport = tr
 	} else {
-		tr := &http.Transport{
-			MaxIdleConns:        1000,
-			MaxIdleConnsPerHost: 500,
-			IdleConnTimeout:     time.Duration(cfg.Timeout) * time.Second,
-			DisableKeepAlives:   cfg.KeepAlive,
-			DisableCompression:  cfg.Compression,
-			ForceAttemptHTTP2:   false,
-			TLSClientConfig:     &tls.Config{InsecureSkipVerify: cfg.Insecure},
-			Proxy:               http.ProxyURL(proxyURL),
-		}
+		tr := setupHTTPTransport(cfg, proxyURL)
 
 		// skipping DNS resolution only works with HTTP 1.1, not HTTP 2.0
 		if cfg.SkipDNS {
@@ -65,7 +41,6 @@ func NewClient(cfg config.Config) (*http.Client, error) {
 		if cfg.Resolver != "" {
 			cfg.SetupCustomResolver(tr)
 		}
-
 		transport = tr
 	}
 
@@ -76,4 +51,44 @@ func NewClient(cfg config.Config) (*http.Client, error) {
 
 	cfg.Logger.Debug("HTTP client successfully initialized with timeout: %d seconds", cfg.Timeout)
 	return client, nil
+}
+
+func setupHTTP2Transport(cfg config.Config) (*http2.Transport, error) {
+	transport := &http2.Transport{}
+	if cfg.ReuseConnections {
+		transport = &http2.Transport{
+			DisableCompression: cfg.Compression,
+			TLSClientConfig:    &tls.Config{InsecureSkipVerify: cfg.Insecure},
+			IdleConnTimeout:    time.Duration(cfg.Timeout) * time.Second,
+		}
+	} else {
+		transport = &http2.Transport{
+			DisableCompression: cfg.Compression,
+			TLSClientConfig:    &tls.Config{InsecureSkipVerify: cfg.Insecure},
+			IdleConnTimeout:    time.Duration(cfg.Timeout) * time.Second,
+			DialTLS: func(network, addr string, cfg *tls.Config) (net.Conn, error) {
+				tcpConn, err := net.Dial(network, addr)
+				if err != nil {
+					return nil, err
+				}
+				return tls.Client(tcpConn, cfg), nil
+			},
+		}
+	}
+
+	cfg.Logger.Debug("Setting up HTTP/2 transport")
+	return transport, nil
+}
+
+func setupHTTPTransport(cfg config.Config, proxyURL *url.URL) *http.Transport {
+	return &http.Transport{
+		MaxIdleConns:        1000,
+		MaxIdleConnsPerHost: 500,
+		IdleConnTimeout:     time.Duration(cfg.Timeout) * time.Second,
+		DisableKeepAlives:   cfg.KeepAlive,
+		DisableCompression:  cfg.Compression,
+		ForceAttemptHTTP2:   false,
+		TLSClientConfig:     &tls.Config{InsecureSkipVerify: cfg.Insecure},
+		Proxy:               http.ProxyURL(proxyURL),
+	}
 }

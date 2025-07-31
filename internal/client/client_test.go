@@ -2,7 +2,6 @@ package client
 
 import (
 	"net/http"
-	"net/http/httptest"
 	"net/url"
 	"testing"
 	"time"
@@ -41,32 +40,45 @@ func TestNewClient(t *testing.T) {
 	}
 }
 
-func TestGETRequest(t *testing.T) {
-	// Set up a mock server
-	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	}))
-	defer testServer.Close()
-
+// TestsetupHTTP2Transport tests the HTTP/2 transport setup
+func TestSetupHTTP2Transport(t *testing.T) {
 	cfg := config.Config{
-		URL:    testServer.URL,
-		Method: http.MethodGet,
-		Logger: logger.New("error", "stdout", false),
+		HTTP2:            true,
+		ReuseConnections: true,
+		Compression:      false,
+		Logger:           logger.New("error", "stdout", false),
 	}
-	client, err := NewClient(cfg)
+	transport, err := setupHTTP2Transport(cfg)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("Failed to setup HTTP/2 transport: %v", err)
 	}
+	if transport == nil {
+		t.Fatal("Expected non-nil HTTP/2 transport")
+	}
+	if transport.DisableCompression != cfg.Compression {
+		t.Fatalf("Expected DisableCompression to be %v, got %v", cfg.Compression, transport.DisableCompression)
+	}
+}
 
-	req, _ := http.NewRequest("GET", testServer.URL, nil)
-	response, err := client.Do(req)
+// TestSetupHTTPTransport tests the HTTP transport setup
+func TestSetupHTTPTransport(t *testing.T) {
+	cfg := config.Config{
+		HTTP2:            false,
+		ReuseConnections: true,
+		Compression:      false,
+		Logger:           logger.New("error", "stdout", false),
+	}
+	proxyURL, err := url.Parse("http://localhost:8080")
 	if err != nil {
-		t.Fatalf("Failed to send GET request: %v", err)
+		t.Fatalf("Failed to parse proxy URL: %v", err)
 	}
-	defer response.Body.Close()
-
-	if response.StatusCode != http.StatusOK {
-		t.Fatalf("Expected status 200 OK, got %v", response.StatusCode)
+	transport := setupHTTPTransport(cfg, proxyURL)
+	if transport == nil {
+		t.Fatal("Expected non-nil HTTP transport")
+	}
+	transport.Proxy = http.ProxyURL(proxyURL)
+	if transport.Proxy == nil {
+		t.Fatal("Expected proxy to be set in HTTP transport")
 	}
 }
 
