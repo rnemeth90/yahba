@@ -51,6 +51,5 @@ to quickly create a Cobra application.`,
 }
 
 func init() {
-	rootCmd.AddCommand(serverCmd)
 	serverCmd.PersistentFlags().StringVarP(&serverConfig.Port, "port", "p", ":8081", "port to run the server on")
 }

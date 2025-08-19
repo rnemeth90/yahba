@@ -24,6 +24,7 @@ func NewClient(cfg config.Config) (*http.Client, error) {
 	}
 
 	var transport http.RoundTripper
+	dialer := &net.Dialer{}
 	if cfg.HTTP2 {
 		tr, err := setupHTTP2Transport(cfg)
 		if err != nil {
@@ -35,7 +36,7 @@ func NewClient(cfg config.Config) (*http.Client, error) {
 
 		// skipping DNS resolution only works with HTTP 1.1, not HTTP 2.0
 		if cfg.SkipDNS {
-			cfg.SkipNameResolution(tr)
+			cfg.SkipNameResolution(tr, dialer)
 		}
 
 		if cfg.Resolver != "" {
