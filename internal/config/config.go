@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/rnemeth90/yahba/internal/logger"
+	"github.com/rnemeth90/yahba/internal/netutil"
 	"github.com/rnemeth90/yahba/internal/util"
 )
 
@@ -156,7 +157,7 @@ func (c *Config) SetupProxy() (*url.URL, error) {
 }
 
 // SkipNameResolution bypasses DNS resolution for the host
-func (c *Config) SkipNameResolution(tr *http.Transport) {
+func (c *Config) SkipNameResolution(tr *http.Transport, dialer netutil.Dialer) {
 	c.Logger.Debug("Bypassing name resolution for host: %s", c.URL)
 	tr.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
 		_, port, err := net.SplitHostPort(addr)
@@ -169,7 +170,7 @@ func (c *Config) SkipNameResolution(tr *http.Transport) {
 		}
 
 		c.Logger.Debug("Bypassing DNS resolution for host: %s:%s", c.URL, port)
-		return net.Dial(network, net.JoinHostPort(c.URL, port))
+		return dialer.DialContext(ctx, network, net.JoinHostPort(c.URL, port))
 	}
 }
 
