@@ -54,6 +54,7 @@ func NewClient(cfg config.Config) (*http.Client, error) {
 	return client, nil
 }
 
+// setupHTTP2Transport configures and returns an HTTP/2 transport based on the provided configuration.
 func setupHTTP2Transport(cfg config.Config) (*http2.Transport, error) {
 	transport := &http2.Transport{}
 	if cfg.ReuseConnections {

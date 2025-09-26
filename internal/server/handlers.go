@@ -11,5 +11,3 @@ func testHandler(w http.ResponseWriter, r *http.Request) {
 	logger.Info("Hello sent")
 	w.WriteHeader(http.StatusOK)
 }
-
-
