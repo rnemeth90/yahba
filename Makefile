@@ -1,4 +1,3 @@
-# -------- CONFIG --------
 COMMAND_NAME      := yahba
 VERSION           ?= dev
 PACKAGE_PATH      := ./main.go
