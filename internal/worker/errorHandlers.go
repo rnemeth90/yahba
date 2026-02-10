@@ -22,7 +22,7 @@ func (w *Worker) handleClientError(job Job, result report.Result, resp *http.Res
 	result.EndTime = end
 	result.ElapsedTime = result.EndTime.Sub(start)
 
-	if resp != nil {
+	if resp != nil && !result.Timeout {
 		result.ResultCode = resp.StatusCode
 		result.Method = resp.Request.Method
 		result.TargetURL = resp.Request.URL.RawPath

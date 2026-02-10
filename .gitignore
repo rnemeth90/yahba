@@ -1,2 +1,5 @@
 *.*~
 /bin
+/build
+result.log
+notes.md

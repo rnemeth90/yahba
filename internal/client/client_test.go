@@ -36,8 +36,8 @@ func TestNewClient(t *testing.T) {
 	if !ok {
 		t.Fatal("Expected http.Transport for client Transport")
 	}
-	if transport.DisableKeepAlives != cfg.KeepAlive {
-		t.Fatalf("Expected DisableKeepAlives to be %v, got %v", cfg.KeepAlive, transport.DisableKeepAlives)
+	if transport.DisableKeepAlives != !cfg.KeepAlive {
+		t.Fatalf("Expected DisableKeepAlives to be %v, got %v", !cfg.KeepAlive, transport.DisableKeepAlives)
 	}
 }
 

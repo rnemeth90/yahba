@@ -81,13 +81,14 @@ func init() {
 	runCmd.PersistentFlags().BoolVar(&c.Compression, "compression", false, "Enable HTTP compression (gzip)")
 	runCmd.PersistentFlags().StringVar(&c.ProxyUser, "proxy-user", "", "Proxy authentication username")
 	runCmd.PersistentFlags().StringVar(&c.ProxyPassword, "proxy-password", "", "Proxy authentication password")
-	runCmd.PersistentFlags().IntVarP(&c.Sleep, "sleep", "s", 1, "Sleep time (throttles requests)")
+	runCmd.PersistentFlags().IntVarP(&c.Sleep, "sleep", "s", 0, "Additional sleep between requests in seconds (default: 0)")
 	runCmd.PersistentFlags().BoolVar(&c.SkipDNS, "skip-dns", false, "Skip DNS resolution (requires direct IP)")
 	runCmd.PersistentFlags().StringVarP(&c.OutputFormat, "format", "f", "raw", "Output format (json, yaml, raw)")
 	runCmd.PersistentFlags().StringVar(&c.OutputFile, "out", "stdout", "Output file (default: stdout)")
 	runCmd.PersistentFlags().StringVar(&c.FileName, "filename", "", "Specify a file name when using --out file")
-	runCmd.PersistentFlags().BoolVar(&c.Server, "server", false, "Start a test server")
 	runCmd.PersistentFlags().BoolVarP(&c.ReuseConnections, "reuse-connections", "R", false, "Multiplex connections, only works with HTTP2")
+	runCmd.PersistentFlags().IntVarP(&c.Workers, "workers", "w", 10, "Number of concurrent workers. Default: 10")
+	runCmd.PersistentFlags().BoolVar(&c.RandomUserAgent, "random-user-agent", false, "Randomize the User-Agent header per request")
 }
 
 func run(ctx context.Context, c config.Config) error {
@@ -152,11 +153,4 @@ func generateReport(c config.Config, r report.Report) error {
 	c.Logger.Debug("Report generated successfully")
 	fmt.Fprintln(c.Logger.Writer(), reportOutput)
 	return nil
-}
-
-func cleanup(logger *logger.Logger, channels ...chan any) {
-	for _, ch := range channels {
-		close(ch)
-	}
-	logger.Debug("Cleanup complete")
 }

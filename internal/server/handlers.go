@@ -2,14 +2,9 @@ package server
 
 import (
 	"net/http"
-
-	"github.com/rnemeth90/yahba/internal/logger"
 )
 
-func testHandler(w http.ResponseWriter, r *http.Request) {
-	logger := logger.New("debug", "stdout", false)
-	logger.Info("Hello sent")
+func (s *Server) testHandler(w http.ResponseWriter, r *http.Request) {
+	s.Logger.Debug("Hello sent")
 	w.WriteHeader(http.StatusOK)
 }
-
-

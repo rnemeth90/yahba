@@ -3,6 +3,8 @@ package report
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"sort"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -17,8 +19,11 @@ func ParseRaw(report Report) (string, error) {
 	builder.WriteString("==========================\n\n")
 	builder.WriteString(" YAHBA Stress Test Report \n")
 	builder.WriteString("==========================\n\n")
-	successRate := float64(report.Successes) / float64(report.TotalRequests) * 100
-	failureRate := float64(report.Failures) / float64(report.TotalRequests) * 100
+	var successRate, failureRate float64
+	if report.TotalRequests > 0 {
+		successRate = float64(report.Successes) / float64(report.TotalRequests) * 100
+		failureRate = float64(report.Failures) / float64(report.TotalRequests) * 100
+	}
 	builder.WriteString(fmt.Sprintf("Host:                 %s\n", report.Host))
 	builder.WriteString(fmt.Sprintf("Method:               %s\n", report.Method))
 	builder.WriteString(fmt.Sprintf("Total Requests:       %d\n", report.TotalRequests))
@@ -43,16 +48,15 @@ func ParseRaw(report Report) (string, error) {
 	builder.WriteString(fmt.Sprintf("  Bytes Received/Sec:   %.02f\n\n", report.Throughput.BytesReceivedPerSecond))
 
 	builder.WriteString("Status Code Breakdown:\n")
-	builder.WriteString(fmt.Sprintf("  200 OK:                 %d\n", report.StatusCodes.Num200))
-	builder.WriteString(fmt.Sprintf("  400 Bad Request:        %d\n", report.StatusCodes.Num400))
-	builder.WriteString(fmt.Sprintf("  403 Forbidden:          %d\n", report.StatusCodes.Num403))
-	builder.WriteString(fmt.Sprintf("  404 Not Found:          %d\n", report.StatusCodes.Num404))
-	builder.WriteString(fmt.Sprintf("  408 Request Timed Out:  %d\n", report.StatusCodes.Num408))
-	builder.WriteString(fmt.Sprintf("  429 Too Many Requests:  %d\n", report.StatusCodes.Num429))
-	builder.WriteString(fmt.Sprintf("  500 Internal Server Error: %d\n", report.StatusCodes.Num500))
-	builder.WriteString(fmt.Sprintf("  502 Bad Gateway:        %d\n", report.StatusCodes.Num502))
-	builder.WriteString(fmt.Sprintf("  503 Service Unavailable: %d\n", report.StatusCodes.Num503))
-	builder.WriteString(fmt.Sprintf("  504 Gateway Timeout:    %d\n\n", report.StatusCodes.Num504))
+	codes := make([]int, 0, len(report.StatusCodes))
+	for code := range report.StatusCodes {
+		codes = append(codes, code)
+	}
+	sort.Ints(codes)
+	for _, code := range codes {
+		builder.WriteString(fmt.Sprintf("  %d %s: %d\n", code, http.StatusText(code), report.StatusCodes[code]))
+	}
+	builder.WriteString("\n")
 
 	builder.WriteString("Error Breakdown:\n")
 	builder.WriteString(fmt.Sprintf("  Server Errors:          %d\n", report.ErrorBreakdown.ServerErrors))
