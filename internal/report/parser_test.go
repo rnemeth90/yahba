@@ -27,15 +27,12 @@ func sampleReport() Report {
 			TotalBytesSent:     1000000,
 			TotalBytesReceived: 5000000,
 		},
-		StatusCodes: StatusCodes{
-			Num200: 90,
-			Num400: 5,
-			Num403: 2,
-			Num404: 2,
-			Num500: 1,
-			Num502: 0,
-			Num503: 0,
-			Num504: 0,
+		StatusCodes: map[int]int{
+			200: 90,
+			400: 5,
+			403: 2,
+			404: 2,
+			500: 1,
 		},
 		ErrorBreakdown: ErrorBreakdown{
 			ServerErrors: 5,
@@ -98,8 +95,8 @@ func TestParseJSON(t *testing.T) {
 	if parsedReport.Latency.Min != "20ms" {
 		t.Errorf("expected Latency.Min '20ms', got %s", parsedReport.Latency.Min)
 	}
-	if parsedReport.StatusCodes.Num200 != 90 {
-		t.Errorf("expected StatusCodes.Num200 90, got %d", parsedReport.StatusCodes.Num200)
+	if parsedReport.StatusCodes[200] != 90 {
+		t.Errorf("expected StatusCodes[200] 90, got %d", parsedReport.StatusCodes[200])
 	}
 }
 
@@ -120,7 +117,7 @@ func TestParseYAML(t *testing.T) {
 	if parsedReport.Latency.Min != "20ms" {
 		t.Errorf("expected Latency.Min '20ms', got %s", parsedReport.Latency.Min)
 	}
-	if parsedReport.StatusCodes.Num200 != 90 {
-		t.Errorf("expected StatusCodes.Num200 90, got %d", parsedReport.StatusCodes.Num200)
+	if parsedReport.StatusCodes[200] != 90 {
+		t.Errorf("expected StatusCodes[200] 90, got %d", parsedReport.StatusCodes[200])
 	}
 }

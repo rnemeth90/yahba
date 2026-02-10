@@ -12,7 +12,7 @@ type Server struct {
 }
 
 func (s *Server) Run() error {
-	http.HandleFunc("/test", testHandler)
+	http.HandleFunc("/test", s.testHandler)
 
 	if s.Config.Port != "" {
 		s.Logger.Debug("Starting server on port %s", s.Config.Port)

@@ -42,9 +42,17 @@ type Config struct {
 	Silent           bool
 	Server           bool
 	ReuseConnections bool
+	Workers          int
+	RandomUserAgent  bool
 }
 
-var validHTTPMethods = []string{"GET", "HEAD", "PUT", "POST"}
+var validHTTPMethods = map[string]bool{
+	"GET":    true,
+	"HEAD":   true,
+	"POST":   true,
+	"PUT":    true,
+	"DELETE": true,
+}
 
 // This monstrosity validates your config :)
 func (config *Config) Validate() error {
@@ -56,11 +64,6 @@ func (config *Config) Validate() error {
 		return ErrInvalidLogFilePath
 	}
 
-	ipAddy := net.ParseIP(config.URL)
-	if config.SkipDNS && ipAddy == nil {
-		return ErrInvalidIPAddressForHost
-	}
-
 	if !strings.HasPrefix(config.URL, "http") {
 		return ErrInvalidProtocolScheme
 	}
@@ -70,11 +73,11 @@ func (config *Config) Validate() error {
 		return ErrInvalidHost
 	}
 
-	if u.Scheme == "https" && config.Insecure {
-		return ErrInvalidProtocolScheme
+	if config.SkipDNS && net.ParseIP(u.Hostname()) == nil {
+		return ErrInvalidIPAddressForHost
 	}
 
-	if config.Method != "GET" && config.Method != "POST" && config.Method != "PUT" && config.Method != "DELETE" {
+	if !validHTTPMethods[config.Method] {
 		return ErrInvalidMethod
 	}
 
@@ -103,10 +106,6 @@ func (config *Config) Validate() error {
 		return ErrConflictingDNSOptions
 	}
 
-	if (config.Method == "POST" || config.Method == "PUT") && config.Body == "" {
-		return ErrMissingBody
-	}
-
 	if config.Headers != "" {
 		if _, err := util.ParseHeaders(config.Headers); err != nil {
 			return ErrInvalidHeaders
@@ -119,16 +118,8 @@ func (config *Config) Validate() error {
 		}
 	}
 
-	if config.Timeout <= 0 {
-		return ErrInvalidTimeout
-	}
-
 	if config.RPS <= 0 {
 		return ErrInvalidRPS
-	}
-
-	if config.Requests <= 0 {
-		return ErrInvalidRequests
 	}
 
 	if config.HTTP2 && config.HTTP3 {
@@ -157,19 +148,21 @@ func (c *Config) SetupProxy() (*url.URL, error) {
 
 // SkipNameResolution bypasses DNS resolution for the host
 func (c *Config) SkipNameResolution(tr *http.Transport) {
-	c.Logger.Debug("Bypassing name resolution for host: %s", c.URL)
+	u, _ := url.Parse(c.URL)
+	host := u.Hostname()
+	c.Logger.Debug("Bypassing name resolution for host: %s", host)
 	tr.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
 		_, port, err := net.SplitHostPort(addr)
 		if err != nil {
-			if strings.HasPrefix(c.URL, "https://") {
+			if u.Scheme == "https" {
 				port = "443"
 			} else {
 				port = "80"
 			}
 		}
 
-		c.Logger.Debug("Bypassing DNS resolution for host: %s:%s", c.URL, port)
-		return net.Dial(network, net.JoinHostPort(c.URL, port))
+		c.Logger.Debug("Bypassing DNS resolution for host: %s:%s", host, port)
+		return net.Dial(network, net.JoinHostPort(host, port))
 	}
 }
 

@@ -2,6 +2,7 @@ package report
 
 import (
 	"fmt"
+	"math"
 	"sort"
 	"time"
 )
@@ -13,7 +14,7 @@ type Report struct {
 	ErrorBreakdown ErrorBreakdown `json:"error_breakdown"`
 	Latency        Latency        `json:"latency"`
 	Throughput     Throughput     `json:"throughput"`
-	StatusCodes    StatusCodes    `json:"status_codes"`
+	StatusCodes    map[int]int    `json:"status_codes"`
 	TotalRequests  int            `json:"total_requests"`
 	Successes      int            `json:"success"`
 	Failures       int            `json:"failures"`
@@ -57,21 +58,6 @@ type Throughput struct {
 	BytesReceivedPerSecond float64 `json:"bytes_received_per_second"`
 }
 
-type StatusCodes struct {
-	Num200 int `json:"200"`
-	Num201 int `json:"201"`
-	Num204 int `json:"204"`
-	Num400 int `json:"400"`
-	Num403 int `json:"403"`
-	Num404 int `json:"404"`
-	Num408 int `json:"408"`
-	Num429 int `json:"429"`
-	Num500 int `json:"500"`
-	Num502 int `json:"502"`
-	Num503 int `json:"503"`
-	Num504 int `json:"504"`
-}
-
 func (r *Report) CalculateLatencyMetrics() {
 	if r.TotalRequests == 0 {
 		r.Latency = Latency{}
@@ -89,59 +75,34 @@ func (r *Report) CalculateLatencyMetrics() {
 		return latencies[i] < latencies[j]
 	})
 
+	n := len(latencies)
 	minLatency := latencies[0]
-	maxLatency := latencies[len(latencies)-1]
-	avgLatency := totalLatency / time.Duration(len(latencies))
-	p50 := latencies[len(latencies)*50/100]
-	p95 := latencies[len(latencies)*95/100]
-	p99 := latencies[len(latencies)*99/100]
+	maxLatency := latencies[n-1]
+	avgLatency := totalLatency / time.Duration(n)
 
 	r.Latency = Latency{
 		Min: formatDuration(minLatency),
 		Max: formatDuration(maxLatency),
 		Avg: formatDuration(avgLatency),
-		P50: formatDuration(p50),
-		P95: formatDuration(p95),
-		P99: formatDuration(p99),
+		P50: formatDuration(latencies[percentileIndex(n, 50)]),
+		P95: formatDuration(latencies[percentileIndex(n, 95)]),
+		P99: formatDuration(latencies[percentileIndex(n, 99)]),
 	}
+}
+
+// percentileIndex returns the index for a given percentile using the nearest-rank method.
+func percentileIndex(n int, percentile float64) int {
+	idx := int(math.Ceil(percentile/100*float64(n))) - 1
+	if idx < 0 {
+		return 0
+	}
+	if idx >= n {
+		return n - 1
+	}
+	return idx
 }
 
 // Format duration into a readable string
 func formatDuration(d time.Duration) string {
 	return fmt.Sprintf("%v", d)
-}
-
-func (r *Report) ConvertResultCodes(m map[int]int) {
-	statusCodes := StatusCodes{}
-
-	for resultCode, count := range m {
-		switch resultCode {
-		case 200:
-			statusCodes.Num200 = count
-		case 201:
-			statusCodes.Num201 = count
-		case 204:
-			statusCodes.Num204 = count
-		case 400:
-			statusCodes.Num400 = count
-		case 403:
-			statusCodes.Num403 = count
-		case 404:
-			statusCodes.Num404 = count
-		case 408:
-			statusCodes.Num408 = count
-		case 429:
-			statusCodes.Num429 = count
-		case 500:
-			statusCodes.Num500 = count
-		case 502:
-			statusCodes.Num502 = count
-		case 503:
-			statusCodes.Num503 = count
-		case 504:
-			statusCodes.Num504 = count
-		}
-	}
-
-	r.StatusCodes = statusCodes
 }

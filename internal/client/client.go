@@ -27,13 +27,13 @@ func NewClient(cfg config.Config) (*http.Client, error) {
 	if cfg.HTTP2 {
 		if cfg.ReuseConnections {
 			transport = &http2.Transport{
-				DisableCompression: cfg.Compression,
+				DisableCompression: !cfg.Compression,
 				TLSClientConfig:    &tls.Config{InsecureSkipVerify: cfg.Insecure},
 				IdleConnTimeout:    time.Duration(cfg.Timeout) * time.Second,
 			}
 		} else {
 			transport = &http2.Transport{
-				DisableCompression: cfg.Compression,
+				DisableCompression: !cfg.Compression,
 				TLSClientConfig:    &tls.Config{InsecureSkipVerify: cfg.Insecure},
 				IdleConnTimeout:    time.Duration(cfg.Timeout) * time.Second,
 				DialTLS: func(network, addr string, cfg *tls.Config) (net.Conn, error) {
@@ -50,8 +50,8 @@ func NewClient(cfg config.Config) (*http.Client, error) {
 			MaxIdleConns:        1000,
 			MaxIdleConnsPerHost: 500,
 			IdleConnTimeout:     time.Duration(cfg.Timeout) * time.Second,
-			DisableKeepAlives:   cfg.KeepAlive,
-			DisableCompression:  cfg.Compression,
+			DisableKeepAlives:   !cfg.KeepAlive,
+			DisableCompression:  !cfg.Compression,
 			ForceAttemptHTTP2:   false,
 			TLSClientConfig:     &tls.Config{InsecureSkipVerify: cfg.Insecure},
 			Proxy:               http.ProxyURL(proxyURL),

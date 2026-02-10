@@ -48,9 +48,8 @@ func TestCalculateLatencyMetrics(t *testing.T) {
 	}
 }
 
-// Test for ConvertResultCodes
-func TestConvertResultCodes(t *testing.T) {
-	// Sample status code map
+// Test for StatusCodes map assignment
+func TestStatusCodes(t *testing.T) {
 	statusCodeMap := map[int]int{
 		200: 50,
 		201: 10,
@@ -59,45 +58,21 @@ func TestConvertResultCodes(t *testing.T) {
 		403: 2,
 		404: 7,
 		500: 1,
-		502: 0,
 		503: 4,
 		504: 6,
 	}
 
-	// Create a Report and convert result codes
 	report := Report{}
-	report.ConvertResultCodes(statusCodeMap)
+	report.StatusCodes = statusCodeMap
 
-	// Assertions
-	if report.StatusCodes.Num200 != 50 {
-		t.Errorf("expected 50 for 200 OK, got %d", report.StatusCodes.Num200)
+	expected := map[int]int{
+		200: 50, 201: 10, 204: 5, 400: 3,
+		403: 2, 404: 7, 500: 1, 503: 4, 504: 6,
 	}
-	if report.StatusCodes.Num201 != 10 {
-		t.Errorf("expected 10 for 201 Created, got %d", report.StatusCodes.Num201)
-	}
-	if report.StatusCodes.Num204 != 5 {
-		t.Errorf("expected 5 for 204 No Content, got %d", report.StatusCodes.Num204)
-	}
-	if report.StatusCodes.Num400 != 3 {
-		t.Errorf("expected 3 for 400 Bad Request, got %d", report.StatusCodes.Num400)
-	}
-	if report.StatusCodes.Num403 != 2 {
-		t.Errorf("expected 2 for 403 Forbidden, got %d", report.StatusCodes.Num403)
-	}
-	if report.StatusCodes.Num404 != 7 {
-		t.Errorf("expected 7 for 404 Not Found, got %d", report.StatusCodes.Num404)
-	}
-	if report.StatusCodes.Num500 != 1 {
-		t.Errorf("expected 1 for 500 Internal Server Error, got %d", report.StatusCodes.Num500)
-	}
-	if report.StatusCodes.Num502 != 0 {
-		t.Errorf("expected 0 for 502 Bad Gateway, got %d", report.StatusCodes.Num502)
-	}
-	if report.StatusCodes.Num503 != 4 {
-		t.Errorf("expected 4 for 503 Service Unavailable, got %d", report.StatusCodes.Num503)
-	}
-	if report.StatusCodes.Num504 != 6 {
-		t.Errorf("expected 6 for 504 Gateway Timeout, got %d", report.StatusCodes.Num504)
+	for code, count := range expected {
+		if report.StatusCodes[code] != count {
+			t.Errorf("expected %d for status %d, got %d", count, code, report.StatusCodes[code])
+		}
 	}
 }
 

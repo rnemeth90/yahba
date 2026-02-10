@@ -85,12 +85,11 @@ func (w *Worker) processJob(job Job) {
 		return
 	}
 
+	w.setHeaders(req)
 	reqSize, err := util.CalculateRawRequestSize(req)
 	if err != nil {
 		w.Config.Logger.Error("failed to obtain request size: %v", err)
 	}
-
-	w.setHeaders(req)
 
 	start := time.Now()
 	result := w.initializeResult(job, start)
@@ -115,7 +114,14 @@ func Work(ctx context.Context, cfg config.Config, jobs []Job, reportChan chan<- 
 		return
 	}
 
-	numWorkers := cfg.RPS * 10
+	maxWorkers := 1000
+	numWorkers := cfg.Workers
+	if numWorkers <= 0 {
+		numWorkers = cfg.RPS * 10
+	}
+	if numWorkers > maxWorkers {
+		numWorkers = maxWorkers
+	}
 	jobChan := make(chan Job, len(jobs))
 	resultChan := make(chan report.Result, len(jobs))
 
@@ -133,12 +139,16 @@ func Work(ctx context.Context, cfg config.Config, jobs []Job, reportChan chan<- 
 		ticker := time.NewTicker(time.Second / time.Duration(cfg.RPS))
 		defer ticker.Stop()
 
+		sleepDuration := time.Duration(cfg.Sleep) * time.Second
 		for _, job := range jobs {
 			select {
 			case <-ctx.Done():
 				return
 			case jobChan <- job:
 				<-ticker.C
+				if cfg.Sleep > 0 {
+					time.Sleep(sleepDuration)
+				}
 			}
 		}
 	}()
@@ -180,9 +190,13 @@ func processResults(cfg config.Config, resultChan <-chan report.Result) report.R
 		}
 
 		// count all failed requests
-		if result.ResultCode >= 400 {
+		if result.ResultCode == 0 || result.ResultCode >= 400 {
 			report.Failures++
-			cfg.Logger.Warn("Request failed with status code %d", result.ResultCode)
+			if result.ResultCode == 0 {
+				cfg.Logger.Warn("Request failed with no response (connection error)")
+			} else {
+				cfg.Logger.Warn("Request failed with status code %d", result.ResultCode)
+			}
 		} else {
 			// count all successes
 			report.Successes++
@@ -194,12 +208,31 @@ func processResults(cfg config.Config, resultChan <-chan report.Result) report.R
 		}
 	}
 
+	// calculate overall test start/end/duration from individual results
+	if len(report.Results) > 0 {
+		earliest := report.Results[0].StartTime
+		latest := report.Results[0].EndTime
+		for _, r := range report.Results[1:] {
+			if r.StartTime.Before(earliest) {
+				earliest = r.StartTime
+			}
+			if r.EndTime.After(latest) {
+				latest = r.EndTime
+			}
+		}
+		report.StartTime = earliest.Format(time.RFC3339)
+		report.EndTime = latest.Format(time.RFC3339)
+		report.Duration = latest.Sub(earliest)
+	}
+
+	report.Host = cfg.URL
+	report.Method = cfg.Method
 	report.TotalRequests = totalRequests
 	report.Throughput.TotalBytesSent = totalBytesSent
 	report.Throughput.TotalBytesReceived = totalBytesReceived
 	report.Throughput.BytesSentPerSecond = util.CalculateBytesPerSecond(float64(totalBytesSent), duration.Seconds())
 	report.Throughput.BytesReceivedPerSecond = util.CalculateBytesPerSecond(float64(totalBytesReceived), duration.Seconds())
-	report.ConvertResultCodes(resultCodes)
+	report.StatusCodes = resultCodes
 	report.CalculateLatencyMetrics()
 
 	return report
@@ -216,6 +249,12 @@ func (w *Worker) createRequest(job Job) (*http.Request, error) {
 
 // Set headers for the HTTP request
 func (w *Worker) setHeaders(req *http.Request) {
+	if w.Config.RandomUserAgent {
+		req.Header.Set("User-Agent", util.RandomUserAgent())
+	} else {
+		req.Header.Set("User-Agent", util.DefaultUserAgent)
+	}
+
 	for _, h := range w.Config.ParsedHeaders {
 		req.Header.Add(h.Key, h.Value)
 	}
