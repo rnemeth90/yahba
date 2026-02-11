@@ -57,13 +57,13 @@ func TestLogLevelBehavior(t *testing.T) {
 
 		switch tt.logLevel {
 		case "Debug":
-			l.Debug(tt.message)
+			l.Debug("%s", tt.message)
 		case "Info":
-			l.Info(tt.message)
+			l.Info("%s", tt.message)
 		case "Warn":
-			l.Warn(tt.message)
+			l.Warn("%s", tt.message)
 		case "Error":
-			l.Error(tt.message)
+			l.Error("%s", tt.message)
 		}
 
 		if tt.shouldLog && !strings.Contains(buf.String(), tt.message) {
