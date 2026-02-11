@@ -120,7 +120,7 @@ func run(ctx context.Context, c config.Config) error {
 	}
 
 	reportChan := make(chan report.Report, c.Requests)
-	go worker.Work(ctx, c, jobs, reportChan, factory)
+	go worker.Work(ctx, c, jobs, reportChan, factory, nil)
 
 	select {
 	case <-ctx.Done():

@@ -106,8 +106,10 @@ func (w *Worker) processJob(job Job) {
 	w.processResponse(result, resp, start, end, job, reqSize)
 }
 
-// todo: create a comment for this function
-func Work(ctx context.Context, cfg config.Config, jobs []Job, reportChan chan<- report.Report, factory WorkerFactory) {
+// Work dispatches jobs to a worker pool at the configured RPS and collects results
+// into a final report. If progressChan is non-nil, each individual result is also
+// forwarded there for real-time progress tracking (e.g. from a TUI).
+func Work(ctx context.Context, cfg config.Config, jobs []Job, reportChan chan<- report.Report, factory WorkerFactory, progressChan chan<- report.Result) {
 	client, err := client.NewClient(cfg)
 	if err != nil {
 		cfg.Logger.Error("Error creating HTTP client: %v", err)
@@ -159,21 +161,24 @@ func Work(ctx context.Context, cfg config.Config, jobs []Job, reportChan chan<- 
 	}()
 
 	cfg.Logger.Info("Aggregating results into report")
-	report := processResults(cfg, resultChan)
+	report := processResults(cfg, resultChan, progressChan)
 
 	cfg.Logger.Info("Report aggregation complete")
 	reportChan <- report
 	close(reportChan)
 }
 
-// Process results from workers
-func processResults(cfg config.Config, resultChan <-chan report.Result) report.Report {
+// Process results from workers, optionally forwarding each result to progressChan.
+func processResults(cfg config.Config, resultChan <-chan report.Result, progressChan chan<- report.Result) report.Report {
 	report := report.Report{}
 	var totalRequests, totalBytesSent, totalBytesReceived int
 	resultCodes := make(map[int]int)
 	var duration time.Duration
 
 	for result := range resultChan {
+		if progressChan != nil {
+			progressChan <- result
+		}
 		totalRequests++
 		resultCodes[result.ResultCode]++
 		totalBytesSent += result.BytesSent
@@ -223,6 +228,10 @@ func processResults(cfg config.Config, resultChan <-chan report.Result) report.R
 		report.StartTime = earliest.Format(time.RFC3339)
 		report.EndTime = latest.Format(time.RFC3339)
 		report.Duration = latest.Sub(earliest)
+	}
+
+	if progressChan != nil {
+		close(progressChan)
 	}
 
 	report.Host = cfg.URL
