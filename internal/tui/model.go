@@ -12,6 +12,7 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+
 	"github.com/rnemeth90/yahba/internal/config"
 	"github.com/rnemeth90/yahba/internal/logger"
 	"github.com/rnemeth90/yahba/internal/report"
@@ -331,7 +332,7 @@ func (m *model) resetToForm() {
 	m.reportChan = nil
 	m.cancelFunc = nil
 
-	// Re-focus first input
+	// re-focus first input
 	for i := range m.inputs {
 		m.inputs[i].Blur()
 	}

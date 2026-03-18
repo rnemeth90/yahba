@@ -81,8 +81,9 @@ func (m model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// --- Form key handling ---
-
+//	handleFormKey for key handling
+//
+// todo: support vim bindings (j/k to navigate, etc.)
 func (m model) handleFormKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "ctrl+c", "esc":

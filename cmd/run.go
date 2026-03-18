@@ -22,19 +22,28 @@ THE SOFTWARE.
 package cmd
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
+	"github.com/rnemeth90/yahba/internal/api"
 	"github.com/rnemeth90/yahba/internal/config"
 	"github.com/rnemeth90/yahba/internal/logger"
 	"github.com/rnemeth90/yahba/internal/report"
 	"github.com/rnemeth90/yahba/internal/util"
 	"github.com/rnemeth90/yahba/internal/worker"
 	"github.com/spf13/cobra"
+)
+
+var (
+	distributed      bool
+	coordinatorAddr  string
 )
 
 var runCmd = &cobra.Command{
@@ -89,6 +98,8 @@ func init() {
 	runCmd.PersistentFlags().BoolVarP(&c.ReuseConnections, "reuse-connections", "R", false, "Multiplex connections, only works with HTTP2")
 	runCmd.PersistentFlags().IntVarP(&c.Workers, "workers", "w", 10, "Number of concurrent workers. Default: 10")
 	runCmd.PersistentFlags().BoolVar(&c.RandomUserAgent, "random-user-agent", false, "Randomize the User-Agent header per request")
+	runCmd.PersistentFlags().BoolVar(&distributed, "distributed", false, "Run test distributed across agents via a coordinator")
+	runCmd.PersistentFlags().StringVar(&coordinatorAddr, "coordinator", "http://localhost:9090", "Coordinator address for distributed mode")
 }
 
 func run(ctx context.Context, c config.Config) error {
@@ -97,6 +108,10 @@ func run(ctx context.Context, c config.Config) error {
 		return err
 	}
 	c.Logger.Debug("Configuration validated successfully")
+
+	if distributed {
+		return runDistributed(ctx, c)
+	}
 
 	// todo: do we need to parse headers HERE? why?
 	if c.Headers != "" {
@@ -129,6 +144,103 @@ func run(ctx context.Context, c config.Config) error {
 	case r := <-reportChan:
 		return generateReport(c, r)
 	}
+}
+
+// runDistributed submits the test to a coordinator and polls until complete.
+func runDistributed(ctx context.Context, c config.Config) error {
+	tc := api.TestConfig{
+		URL:              c.URL,
+		Method:           c.Method,
+		Headers:          c.Headers,
+		Body:             c.Body,
+		Requests:         c.Requests,
+		RPS:              c.RPS,
+		Workers:          c.Workers,
+		Timeout:          c.Timeout,
+		Insecure:         c.Insecure,
+		KeepAlive:        c.KeepAlive,
+		HTTP2:            c.HTTP2,
+		Compression:      c.Compression,
+		ReuseConnections: c.ReuseConnections,
+		RandomUserAgent:  c.RandomUserAgent,
+	}
+
+	body, err := json.Marshal(tc)
+	if err != nil {
+		return fmt.Errorf("failed to marshal test config: %w", err)
+	}
+
+	c.Logger.Info("Submitting distributed test to coordinator at %s", coordinatorAddr)
+
+	resp, err := http.Post(coordinatorAddr+"/api/v1/tests", "application/json", bytes.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("could not reach coordinator: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		var errResp api.ErrorResponse
+		json.NewDecoder(resp.Body).Decode(&errResp)
+		return fmt.Errorf("coordinator rejected test: %s", errResp.Error)
+	}
+
+	var submission api.TestSubmissionResponse
+	if err := json.NewDecoder(resp.Body).Decode(&submission); err != nil {
+		return fmt.Errorf("invalid response from coordinator: %w", err)
+	}
+
+	c.Logger.Info("Test submitted (id: %s). Waiting for agents to complete...", submission.TestID)
+
+	// Poll for completion
+	pollInterval := 2 * time.Second
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-time.After(pollInterval):
+		}
+
+		status, err := pollTestStatus(submission.TestID)
+		if err != nil {
+			c.Logger.Error("Error polling test status: %v", err)
+			continue
+		}
+
+		switch status.Status {
+		case "complete":
+			c.Logger.Info("Distributed test complete (%d agents)", status.AgentCount)
+			if status.Report != nil {
+				return generateReport(c, *status.Report)
+			}
+			return fmt.Errorf("test completed but no report available")
+
+		case "error":
+			return fmt.Errorf("test failed: %s", status.Error)
+
+		default:
+			c.Logger.Info("Waiting... %d/%d agents reported",
+				status.ReportsReceived, status.AgentCount)
+		}
+	}
+}
+
+// pollTestStatus fetches the current status of a distributed test.
+func pollTestStatus(testID string) (*api.TestStatusResponse, error) {
+	resp, err := http.Get(coordinatorAddr + "/api/v1/tests/" + testID)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status %d", resp.StatusCode)
+	}
+
+	var status api.TestStatusResponse
+	if err := json.NewDecoder(resp.Body).Decode(&status); err != nil {
+		return nil, err
+	}
+	return &status, nil
 }
 
 func generateReport(c config.Config, r report.Report) error {
