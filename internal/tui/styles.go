@@ -4,6 +4,7 @@ import "github.com/charmbracelet/lipgloss"
 
 var (
 	// Colors (Catppuccin Macchiato palette)
+	// todo: HOw will these look on light terminals? Maybe add a light theme later?
 	colorPrimary = lipgloss.Color("#7DC4E4")
 	colorAccent  = lipgloss.Color("#C6A0F6")
 	colorSuccess = lipgloss.Color("#A6DA95")
@@ -70,11 +71,11 @@ var (
 			Foreground(colorDanger).
 			Bold(true)
 
-	// Progress bar colors
+	// progress bar colors
 	progressFullColor  = colorPrimary
 	progressEmptyColor = lipgloss.Color("#363A4F")
 
-	// Target info
+	// target info
 	targetStyle = lipgloss.NewStyle().
 			Foreground(colorText)
 
@@ -87,14 +88,15 @@ var (
 			Foreground(colorMuted).
 			MarginTop(1)
 
-	// Report
+	// report
 	reportHeaderStyle = lipgloss.NewStyle().
 				Foreground(colorText)
 
 	reportValueStyle = lipgloss.NewStyle().
 				Foreground(colorPrimary)
 
-	// Latency graph
+	// latency graph
+	// todo: the graph scolls too fast with larger jobs
 	graphBarStyle = lipgloss.NewStyle().
 			Foreground(colorPrimary)
 

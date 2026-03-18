@@ -69,6 +69,7 @@ func (m model) viewForm() string {
 
 // --- Running View ---
 
+// viewRunning renders the dashboard while the load test is in progress, showing real-time stats and a latency graph.
 func (m model) viewRunning() string {
 	var b strings.Builder
 
@@ -85,6 +86,9 @@ func (m model) viewRunning() string {
 	b.WriteString("\n\n")
 
 	// Progress bar
+	// todo: the progress bar scrolls too fast with larger jobs,
+	// consider updating it on a timer instead of every request
+	// or perhaps some type of sliding scale
 	pct := float64(m.completed) / float64(m.totalRequests)
 	progressStr := fmt.Sprintf("  %s %d/%d (%.0f%%)",
 		m.progress.View(),

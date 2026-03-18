@@ -7,6 +7,7 @@ import (
 	"time"
 )
 
+// Report represents the aggregated results of a load test, including latency metrics, throughput, error breakdown, and status code distribution.
 type Report struct {
 	Host           string         `json:"host"`
 	Method         string         `json:"method"`
@@ -23,6 +24,7 @@ type Report struct {
 	Duration       time.Duration  `json:"duration"`
 }
 
+// Result captures the details of an individual HTTP request made during the load test, including timing, status, and any errors encountered.
 type Result struct {
 	StartTime     time.Time     `json:"start_time"`
 	EndTime       time.Time     `json:"end_time"`
@@ -37,11 +39,13 @@ type Result struct {
 	BytesReceived int           `json:"bytes_received"`
 }
 
+// ErrorBreakdown categorizes errors into server and client errors for easier analysis.
 type ErrorBreakdown struct {
 	ServerErrors int `json:"server_errors"`
 	ClientErrors int `json:"client_errors"`
 }
 
+// Latency captures various latency metrics, including min, max, average, and percentiles.
 type Latency struct {
 	Min string `json:"min"`
 	Max string `json:"max"`
@@ -51,6 +55,7 @@ type Latency struct {
 	P99 string `json:"p99"`
 }
 
+// Throughput captures total bytes sent/received and their rates per second.
 type Throughput struct {
 	TotalBytesSent         int     `json:"total_bytes_sent"`
 	TotalBytesReceived     int     `json:"total_bytes_received"`
@@ -58,6 +63,7 @@ type Throughput struct {
 	BytesReceivedPerSecond float64 `json:"bytes_received_per_second"`
 }
 
+// CalculateLatencyMetrics computes latency metrics from individual request results and populates the Latency field of the report.
 func (r *Report) CalculateLatencyMetrics() {
 	if r.TotalRequests == 0 {
 		r.Latency = Latency{}
