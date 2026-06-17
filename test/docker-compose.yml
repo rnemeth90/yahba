@@ -1,0 +1,14 @@
+services:
+  nginx:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8088:80"
+    volumes:
+      # Mount the full aprimo nginx config tree so include paths resolve
+      - ${HOME}/repos/aprimo/marketingoperations/nginx/nginx:/etc/nginx:ro
+      # Override nginx.conf with our test version that skips nginx-plus
+      # directives and unreachable infrastructure
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    stdin_open: true

@@ -34,6 +34,7 @@ const (
 	inputMethod
 	inputRequests
 	inputRPS
+	inputKeepAlives
 	inputWorkers
 	inputTimeout
 	inputHeaders
@@ -47,6 +48,7 @@ var inputLabels = [inputCount]string{
 	"Method",
 	"Requests",
 	"RPS",
+	"Keep-Alives",
 	"Workers",
 	"Timeout (s)",
 	"Headers",
@@ -169,6 +171,10 @@ func New() model {
 	inputs[inputRPS].SetValue("10")
 	inputs[inputRPS].CharLimit = 10
 
+	inputs[inputKeepAlives].Placeholder = "true"
+	inputs[inputKeepAlives].SetValue("false")
+	inputs[inputKeepAlives].CharLimit = 5
+
 	inputs[inputWorkers].Placeholder = "10"
 	inputs[inputWorkers].SetValue("10")
 	inputs[inputWorkers].CharLimit = 10
@@ -221,6 +227,11 @@ func (m *model) buildConfig() (config.Config, error) {
 		return config.Config{}, fmt.Errorf("RPS must be a positive integer")
 	}
 
+	keepAlives, err := strconv.ParseBool(m.inputs[inputKeepAlives].Value())
+	if err != nil {
+		return config.Config{}, fmt.Errorf("keep-alives must be true or false")
+	}
+
 	workers, err := strconv.Atoi(m.inputs[inputWorkers].Value())
 	if err != nil || workers <= 0 {
 		return config.Config{}, fmt.Errorf("workers must be a positive integer")
@@ -236,6 +247,7 @@ func (m *model) buildConfig() (config.Config, error) {
 		Method:       method,
 		Requests:     requests,
 		RPS:          rps,
+		KeepAlive:    keepAlives,
 		Workers:      workers,
 		Timeout:      timeout,
 		Headers:      m.inputs[inputHeaders].Value(),
