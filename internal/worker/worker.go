@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"net/http"
-	"net/http/httputil"
 	"sync"
 	"time"
 
@@ -291,8 +291,9 @@ func (w *Worker) processResponse(result report.Result, resp *http.Response, star
 		return
 	}
 
-	bytesReceived, err := httputil.DumpResponse(resp, true)
-	if err != nil {
+	// bytesReceived, err := httputil.DumpResponse(resp, true)
+	n, err := io.Copy(io.Discard, resp.Body)
+	if err != nil || n <= 0 {
 		w.Config.Logger.Error("worker %d: Failed to dump response from %s: %v", w.ID, job.Host, err)
 		result.Error = err
 		result.EndTime = time.Now()
@@ -301,7 +302,7 @@ func (w *Worker) processResponse(result report.Result, resp *http.Response, star
 		return
 	}
 
-	result.BytesReceived = len(bytesReceived)
+	// result.BytesReceived = len(bytesReceived)
 	result.BytesSent = bytesSent
 	w.Config.Logger.Debug("worker %d: Received %d bytes from %s", w.ID, result.BytesReceived, job.Host)
 

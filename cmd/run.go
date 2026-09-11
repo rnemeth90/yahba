@@ -27,6 +27,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/rnemeth90/yahba/internal/config"
@@ -89,9 +90,14 @@ func init() {
 	runCmd.PersistentFlags().BoolVarP(&c.ReuseConnections, "reuse-connections", "R", false, "Multiplex connections, only works with HTTP2")
 	runCmd.PersistentFlags().IntVarP(&c.Workers, "workers", "w", 10, "Number of concurrent workers. Default: 10")
 	runCmd.PersistentFlags().BoolVar(&c.RandomUserAgent, "random-user-agent", false, "Randomize the User-Agent header per request")
+	runCmd.PersistentFlags().StringVar(&c.TestFile, "file-name", "", "Name of test definition file")
 }
 
 func run(ctx context.Context, c config.Config) error {
+	if c.TestFile != "" {
+		return runFromDefFile(ctx, c)
+	}
+
 	c.Logger.Debug("Validating configuration")
 	if err := c.Validate(); err != nil {
 		return err
@@ -129,6 +135,97 @@ func run(ctx context.Context, c config.Config) error {
 	case r := <-reportChan:
 		return generateReport(c, r)
 	}
+}
+
+// runFromDefFile validates and parses a test definition file, then runs each
+// named request in dependency order (honoring depends_on), aggregating all
+// results into a single combined report.
+func runFromDefFile(ctx context.Context, c config.Config) error {
+	c.Logger.Debug("Validating definition file")
+	if err := config.ValidateDefFile(c.TestFile); err != nil {
+		return fmt.Errorf("invalid definition file: %w", err)
+	}
+
+	def, err := config.ParseDefFile(c.TestFile)
+	if err != nil {
+		return fmt.Errorf("error while parsing def file: %w", err)
+	}
+	c.Logger.Debug("Parsed %d request(s) from definition file %s", len(def.Requests), c.TestFile)
+
+	factory := func(id int, jobChan <-chan worker.Job, resultChan chan<- report.Result, client *http.Client, cfg config.Config) worker.Worker {
+		return *worker.NewWorker(id, jobChan, resultChan, client, cfg)
+	}
+
+	var allResults []report.Result
+	hosts := make([]string, 0, len(def.Requests))
+	methods := make(map[string]bool)
+
+	for _, reqDef := range def.Requests {
+		select {
+		case <-ctx.Done():
+			c.Logger.Debug("Shutdown signal received. Cleaning up.")
+			return nil
+		default:
+		}
+
+		reqConfig := c
+		reqConfig.URL = reqDef.URL
+		reqConfig.Method = reqDef.Method
+		reqConfig.Body = reqDef.Body
+		reqConfig.RPS = reqDef.RPS
+		reqConfig.Requests = reqDef.Requests
+		reqConfig.Headers = ""
+		reqConfig.ParsedHeaders = headerMapToParsedHeaders(reqDef.Headers)
+
+		if err := reqConfig.Validate(); err != nil {
+			return fmt.Errorf("invalid configuration for request %q: %w", reqDef.Name, err)
+		}
+
+		c.Logger.Debug("Running request %q: %s %s (rps=%d, requests=%d)", reqDef.Name, reqConfig.Method, reqConfig.URL, reqConfig.RPS, reqConfig.Requests)
+
+		jobs := make([]worker.Job, reqConfig.Requests)
+		for i := 0; i < reqConfig.Requests; i++ {
+			jobs[i] = worker.Job{ID: i, Host: reqConfig.URL, Method: reqConfig.Method, Body: reqConfig.Body}
+		}
+
+		reportChan := make(chan report.Report, 1)
+		go worker.Work(ctx, reqConfig, jobs, reportChan, factory, nil)
+
+		select {
+		case <-ctx.Done():
+			c.Logger.Debug("Shutdown signal received. Cleaning up.")
+			return nil
+		case r := <-reportChan:
+			allResults = append(allResults, r.Results...)
+			hosts = append(hosts, reqConfig.URL)
+			methods[reqConfig.Method] = true
+		}
+	}
+
+	combined := report.Aggregate(allResults)
+	combined.Host = strings.Join(hosts, ", ")
+	if len(methods) == 1 {
+		for m := range methods {
+			combined.Method = m
+		}
+	} else {
+		combined.Method = "MULTI"
+	}
+
+	return generateReport(c, combined)
+}
+
+// headerMapToParsedHeaders converts a def file's header map into the
+// []util.Header format expected by the worker/client.
+func headerMapToParsedHeaders(headers map[string]string) []util.Header {
+	if len(headers) == 0 {
+		return nil
+	}
+	parsed := make([]util.Header, 0, len(headers))
+	for k, v := range headers {
+		parsed = append(parsed, util.Header{Key: k, Value: v})
+	}
+	return parsed
 }
 
 func generateReport(c config.Config, r report.Report) error {

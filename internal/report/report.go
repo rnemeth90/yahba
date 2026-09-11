@@ -5,6 +5,8 @@ import (
 	"math"
 	"sort"
 	"time"
+
+	"github.com/rnemeth90/yahba/internal/util"
 )
 
 type Report struct {
@@ -105,4 +107,60 @@ func percentileIndex(n int, percentile float64) int {
 // Format duration into a readable string
 func formatDuration(d time.Duration) string {
 	return fmt.Sprintf("%v", d)
+}
+
+// Aggregate combines the results of multiple sub-tests (e.g. each named
+// request in a definition file) into a single combined Report. Host and
+// Method are left blank; callers should set them based on the sub-tests
+// that were run.
+func Aggregate(results []Result) Report {
+	r := Report{
+		Results:     results,
+		StatusCodes: make(map[int]int),
+	}
+
+	var totalBytesSent, totalBytesReceived int
+	for _, result := range results {
+		r.TotalRequests++
+		r.StatusCodes[result.ResultCode]++
+		totalBytesSent += result.BytesSent
+		totalBytesReceived += result.BytesReceived
+
+		if result.ResultCode >= 400 && result.ResultCode <= 499 {
+			r.ErrorBreakdown.ClientErrors++
+		} else if result.ResultCode >= 500 && result.ResultCode <= 599 {
+			r.ErrorBreakdown.ServerErrors++
+		}
+
+		if result.ResultCode == 0 || result.ResultCode >= 400 {
+			r.Failures++
+		} else {
+			r.Successes++
+		}
+	}
+
+	if len(r.Results) > 0 {
+		earliest := r.Results[0].StartTime
+		latest := r.Results[0].EndTime
+		for _, res := range r.Results[1:] {
+			if res.StartTime.Before(earliest) {
+				earliest = res.StartTime
+			}
+			if res.EndTime.After(latest) {
+				latest = res.EndTime
+			}
+		}
+		r.StartTime = earliest.Format(time.RFC3339)
+		r.EndTime = latest.Format(time.RFC3339)
+		r.Duration = latest.Sub(earliest)
+	}
+
+	r.Throughput.TotalBytesSent = totalBytesSent
+	r.Throughput.TotalBytesReceived = totalBytesReceived
+	r.Throughput.BytesSentPerSecond = util.CalculateBytesPerSecond(float64(totalBytesSent), r.Duration.Seconds())
+	r.Throughput.BytesReceivedPerSecond = util.CalculateBytesPerSecond(float64(totalBytesReceived), r.Duration.Seconds())
+
+	r.CalculateLatencyMetrics()
+
+	return r
 }

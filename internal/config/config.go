@@ -44,6 +44,7 @@ type Config struct {
 	ReuseConnections bool
 	Workers          int
 	RandomUserAgent  bool
+	TestFile         string
 }
 
 var validHTTPMethods = map[string]bool{
@@ -56,7 +57,7 @@ var validHTTPMethods = map[string]bool{
 
 // This monstrosity validates your config :)
 func (config *Config) Validate() error {
-	if config.URL == "" {
+	if config.URL == "" && config.TestFile == "" {
 		return ErrMissingHost
 	}
 

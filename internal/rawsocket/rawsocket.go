@@ -14,16 +14,16 @@ import (
 
 // IPHeader represents a simplified IPv4 header (20 bytes, no options).
 type IPHeader struct {
-	VersionIHL uint8  // Version (4 bits) + IHL (4 bits)
-	TOS        uint8  // Type of Service
-	Length     uint16 // Total packet length (header + payload)
-	ID         uint16 // Identification
-	FlagsFO    uint16 // Flags (3 bits) + Fragment Offset (13 bits)
-	TTL        uint8  // Time to Live
-	Protocol   uint8  // Protocol (IPPROTO_ICMP, IPPROTO_TCP, …)
-	Checksum   uint16 // Header checksum (computed; 0 during calculation)
-	SrcAddr    [4]byte
-	DstAddr    [4]byte
+	VersionIHL uint8   // Version (4 bits) + IHL (4 bits)
+	TOS        uint8   // Type of Service
+	Length     uint16  // Total packet length (header + payload)
+	ID         uint16  // Identification
+	FlagsFO    uint16  // Flags (3 bits) + Fragment Offset (13 bits)
+	TTL        uint8   // Time to Live
+	Protocol   uint8   // Protocol (IPPROTO_ICMP, IPPROTO_TCP, …)
+	Checksum   uint16  // Header checksum (computed; 0 during calculation)
+	SrcAddr    [4]byte // Source Address
+	DstAddr    [4]byte // Destination Address
 }
 
 // NewIPHeader builds an IPv4 header and computes its checksum.
