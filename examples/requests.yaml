@@ -1,0 +1,33 @@
+# Example YAHBA test definition file.
+#
+# Run it with:
+#   yahba run --file-name=examples/requests.yaml
+#
+# Each entry under `requests` describes one named request. Requests are
+# executed in dependency order (via `depends_on`) and their results are
+# aggregated into a single combined report.
+requests:
+  - name: get-homepage
+    url: https://httpbin.org/get
+    method: GET
+    headers:
+      Authorization: "Bearer ******"
+    rps: 5
+    requests: 20
+
+  - name: create-user
+    url: https://httpbin.org/post
+    method: POST
+    body: '{"name":"test-user"}'
+    headers:
+      Content-Type: application/json
+    rps: 2
+    requests: 10
+    depends_on: get-homepage # runs only after get-homepage completes
+
+  - name: check-status
+    url: https://httpbin.org/anything
+    method: GET
+    rps: 5
+    requests: 10
+    depends_on: create-user

@@ -23,4 +23,5 @@ var (
 	ErrConflictingDNSOptions   = errors.New("cannot use both SkipDNS and custom Resolver")
 	ErrInvalidLogFilePath      = errors.New("you must specify a log file name when writing logs to a file")
 	ErrInvalidIPAddressForHost = errors.New("you chose to skip DNS resolution, but the URL provided does not contain an IP address")
+	ErrMissingDefFile          = errors.New("missing definition file name")
 )

@@ -36,9 +36,10 @@
 - [x] **Progress Bar**: Add a progress bar for visual feedback. (replaced by the TUI)
 - [x] **Live TUI Dashboard**: Display real-time latency histograms, throughput graphs, and status code breakdowns in the terminal while a test is running. Libraries like [bubbletea](https://github.com/charmbracelet/bubbletea) or [termdash](https://github.com/mum4k/termdash) would work well for this. This would provide immediate insights into how the test is progressing and allow users to spot issues as they happen.
 - [x] **Remove Commented Code**: Clean up any unused or commented-out code. 
+- [x] **Import Test Definition File**: Provide users with ability to define tests in a file with a dependency chain
+- [x] **Test Server**: Build a test server for simulations.
 
 #### In Progress
-- [ ] **Test Server**: Build a test server for simulations.
 - [ ] **Distributed Load Generation**: Coordinate multiple YAHBA agents to generate load from different machines. The `server` subcommand is already a seed for this. A controller node could distribute jobs across agents and aggregate results into a single report.
 
 #### Pending Tasks / Feature ideas
@@ -49,6 +50,6 @@
 - [ ] **Rate Limiting Logic**: Implement logic for rate limiting (e.g., exponential backoffs for failed requests).
 - [x] **Makefile**: Create a Makefile for streamlined builds and tasks.
 - [ ] **CI/CD**: Set up continuous integration and deployment pipelines.
-- [ ] **Scenario-Based Testing**: Chain multiple requests together in a single test run (e.g., authenticate then hit a protected resource). Define flows declaratively in YAML/JSON config files rather than requiring scripting. This is something most simple benchmarking tools lack.
+- [x] **Scenario-Based Testing**: Chain multiple requests together in a single test run (e.g., authenticate then hit a protected resource). Define flows declaratively in YAML/JSON config files rather than requiring scripting. This is something most simple benchmarking tools lack.
 - [ ] **Comparison Mode**: Run the same test against two endpoints (e.g., old vs. new deployment) and produce a side-by-side diff of latency, throughput, and error rates. Useful for regression testing and deploy confidence checks.
 - [ ] **Ramp-Up Profiles**: Support gradually increasing RPS over time and stepped load profiles instead of only constant rate.
