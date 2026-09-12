@@ -9,6 +9,8 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/time/rate"
+
 	"github.com/rnemeth90/yahba/internal/client"
 	"github.com/rnemeth90/yahba/internal/config"
 	"github.com/rnemeth90/yahba/internal/report"
@@ -21,6 +23,12 @@ type Worker struct {
 	Results chan<- report.Result
 	Client  *http.Client
 	Config  config.Config
+
+	// reqTemplate and bodyBytes cache the built request for jobs that share
+	// the same method/host, so subsequent jobs only need a cheap Clone
+	// instead of building a new *http.Request from scratch.
+	reqTemplate *http.Request
+	bodyBytes   []byte
 }
 
 type watcher interface {
@@ -124,7 +132,8 @@ func Work(ctx context.Context, cfg config.Config, jobs []Job, reportChan chan<- 
 	if numWorkers > maxWorkers {
 		numWorkers = maxWorkers
 	}
-	jobChan := make(chan Job, len(jobs))
+	// jobChan := make(chan Job, len(jobs))
+	jobChan := make(chan Job, 1024)
 	resultChan := make(chan report.Result, len(jobs))
 
 	wg := &sync.WaitGroup{}
@@ -136,18 +145,19 @@ func Work(ctx context.Context, cfg config.Config, jobs []Job, reportChan chan<- 
 		go worker.watch(ctx, wg)
 	}
 
+	limiter := rate.NewLimiter(rate.Limit(cfg.RPS), 1)
 	go func() {
 		defer close(jobChan)
-		ticker := time.NewTicker(time.Second / time.Duration(cfg.RPS))
-		defer ticker.Stop()
 
 		sleepDuration := time.Duration(cfg.Sleep) * time.Second
 		for _, job := range jobs {
+			if err := limiter.Wait(ctx); err != nil {
+				return
+			}
 			select {
 			case <-ctx.Done():
 				return
 			case jobChan <- job:
-				<-ticker.C
 				if cfg.Sleep > 0 {
 					time.Sleep(sleepDuration)
 				}
@@ -237,23 +247,43 @@ func processResults(cfg config.Config, resultChan <-chan report.Result, progress
 	report.Host = cfg.URL
 	report.Method = cfg.Method
 	report.TotalRequests = totalRequests
+	report.TargetRPS = cfg.RPS
 	report.Throughput.TotalBytesSent = totalBytesSent
 	report.Throughput.TotalBytesReceived = totalBytesReceived
 	report.Throughput.BytesSentPerSecond = util.CalculateBytesPerSecond(float64(totalBytesSent), duration.Seconds())
 	report.Throughput.BytesReceivedPerSecond = util.CalculateBytesPerSecond(float64(totalBytesReceived), duration.Seconds())
+	report.Throughput.RequestsPerSecond = util.CalculateBytesPerSecond(float64(totalRequests), report.Duration.Seconds())
 	report.StatusCodes = resultCodes
 	report.CalculateLatencyMetrics()
+
+	if cfg.RPS > 0 && report.Throughput.RequestsPerSecond > 0 && report.Throughput.RequestsPerSecond < float64(cfg.RPS)*0.9 {
+		cfg.Logger.Warn("Achieved RPS (%.2f) is below the configured target of %d; the target host or client may be the bottleneck", report.Throughput.RequestsPerSecond, cfg.RPS)
+	}
 
 	return report
 }
 
-// Create a new HTTP request
+// Create an HTTP request for the job, cloning a cached template when the
+// method and host match the previous job instead of building one from scratch.
 func (w *Worker) createRequest(job Job) (*http.Request, error) {
-	req, err := http.NewRequest(job.Method, job.Host, bytes.NewReader([]byte(job.Body)))
-	if err != nil {
-		w.Config.Logger.Error("worker %d: Failed to create request for %s: %v", w.ID, job.Host, err)
+	if w.reqTemplate == nil || w.reqTemplate.Method != job.Method || w.reqTemplate.URL.String() != job.Host {
+		req, err := http.NewRequest(job.Method, job.Host, nil)
+		if err != nil {
+			w.Config.Logger.Error("worker %d: Failed to create request for %s: %v", w.ID, job.Host, err)
+			return nil, err
+		}
+		w.reqTemplate = req
+		w.bodyBytes = []byte(job.Body)
 	}
-	return req, err
+
+	req := w.reqTemplate.Clone(w.reqTemplate.Context())
+	body := w.bodyBytes
+	req.Body = io.NopCloser(bytes.NewReader(body))
+	req.ContentLength = int64(len(body))
+	req.GetBody = func() (io.ReadCloser, error) {
+		return io.NopCloser(bytes.NewReader(body)), nil
+	}
+	return req, nil
 }
 
 // Set headers for the HTTP request

@@ -45,7 +45,9 @@ func ParseRaw(report Report) (string, error) {
 	builder.WriteString(fmt.Sprintf("  Total Bytes Sent:     %d\n", report.Throughput.TotalBytesSent))
 	builder.WriteString(fmt.Sprintf("  Total Bytes Received: %d\n", report.Throughput.TotalBytesReceived))
 	builder.WriteString(fmt.Sprintf("  Bytes Sent/Sec:       %.02f\n", report.Throughput.BytesSentPerSecond))
-	builder.WriteString(fmt.Sprintf("  Bytes Received/Sec:   %.02f\n\n", report.Throughput.BytesReceivedPerSecond))
+	builder.WriteString(fmt.Sprintf("  Bytes Received/Sec:   %.02f\n", report.Throughput.BytesReceivedPerSecond))
+	builder.WriteString(fmt.Sprintf("  Target RPS:           %d\n", report.TargetRPS))
+	builder.WriteString(fmt.Sprintf("  Achieved RPS:         %.02f\n\n", report.Throughput.RequestsPerSecond))
 
 	builder.WriteString("Status Code Breakdown:\n")
 	codes := make([]int, 0, len(report.StatusCodes))

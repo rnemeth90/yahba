@@ -159,7 +159,9 @@ func (m model) handleResult(r report.Result) (tea.Model, tea.Cmd) {
 		m.failures++
 	}
 
-	m.statusCodes[r.ResultCode]++
+	if r.ResultCode > 0 {
+		m.statusCodes[r.ResultCode]++
+	}
 	m.bytesSent += r.BytesSent
 	m.bytesReceived += r.BytesReceived
 	m.totalLatency += r.ElapsedTime

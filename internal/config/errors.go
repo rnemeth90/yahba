@@ -9,7 +9,7 @@ var (
 	ErrInvalidConcurrency      = errors.New("concurrency must be greater than 0")
 	ErrInvalidRequests         = errors.New("requests must be greater than 0")
 	ErrInvalidTimeout          = errors.New("timeout must be greater than 0")
-	ErrInvalidRPS              = errors.New("requests per second (RPS) must be greater than 0")
+	ErrInvalidRPS              = errors.New("requests per second (RPS) must be greater than 0 and less than 1000")
 	ErrInvalidOutputFormat     = errors.New("invalid output format. Supported formats are json, yaml, raw")
 	ErrInvalidProxy            = errors.New("invalid proxy server address")
 	ErrInvalidResolvers        = errors.New("invalid DNS resolvers format. Expected a comma-separated list")

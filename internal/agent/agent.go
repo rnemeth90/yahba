@@ -67,7 +67,8 @@ func (a *Agent) Run(ctx context.Context) error {
 			continue
 		}
 
-		a.logger.Info("Received work: test %s — %d requests @ %d RPS to %s",
+		a.logger.Info(
+			"Received work: test %s — %d requests @ %d RPS to %s",
 			assignment.TestID,
 			assignment.Config.Requests,
 			assignment.Config.RPS,
@@ -98,7 +99,7 @@ func (a *Agent) register() error {
 	}
 
 	resp, err := http.Post(
-		a.coordinatorURL+"/api/v1/register",
+		"http://"+a.coordinatorURL+"/api/v1/register",
 		"application/json",
 		bytes.NewReader(body),
 	)
@@ -123,7 +124,7 @@ func (a *Agent) register() error {
 // pollForWork asks the coordinator for a work assignment.
 // Returns nil, nil when no work is available.
 func (a *Agent) pollForWork() (*api.WorkAssignment, error) {
-	resp, err := http.Get(a.coordinatorURL + "/api/v1/work/" + a.id)
+	resp, err := http.Get("http://" + a.coordinatorURL + "/api/v1/work/" + a.id)
 	if err != nil {
 		return nil, err
 	}
@@ -207,7 +208,7 @@ func (a *Agent) reportResults(testID string, rpt *report.Report) error {
 		return err
 	}
 
-	url := fmt.Sprintf("%s/api/v1/results/%s?test_id=%s", a.coordinatorURL, a.id, testID)
+	url := fmt.Sprintf("http://%s/api/v1/results/%s?test_id=%s", a.coordinatorURL, a.id, testID)
 	resp, err := http.Post(url, "application/json", bytes.NewReader(body))
 	if err != nil {
 		return err

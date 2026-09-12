@@ -178,7 +178,7 @@ func runDistributed(ctx context.Context, c config.Config) error {
 
 	c.Logger.Info("Submitting distributed test to coordinator at %s", coordinatorAddr)
 
-	resp, err := http.Post(coordinatorAddr+"/api/v1/tests", "application/json", bytes.NewReader(body))
+	resp, err := http.Post("http://"+coordinatorAddr+"/api/v1/tests", "application/json", bytes.NewReader(body))
 	if err != nil {
 		return fmt.Errorf("could not reach coordinator: %w", err)
 	}
@@ -232,7 +232,7 @@ func runDistributed(ctx context.Context, c config.Config) error {
 
 // pollTestStatus fetches the current status of a distributed test.
 func pollTestStatus(testID string) (*api.TestStatusResponse, error) {
-	resp, err := http.Get(coordinatorAddr + "/api/v1/tests/" + testID)
+	resp, err := http.Get("http://" + coordinatorAddr + "/api/v1/tests/" + testID)
 	if err != nil {
 		return nil, err
 	}

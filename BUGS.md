@@ -23,24 +23,28 @@ Every request latency is appended to `m.latencies` forever. For long or high-vol
 
 ---
 
+FIXED
 ### 3. Logger file handle never closed
 **File:** `internal/logger/logger.go`
 When logging to a file, the `*os.File` is opened but never closed. A `Close() error` method should be added to the logger and called during shutdown.
 
 ---
 
+FIXED
 ### 4. Channel buffers sized to `len(jobs)`
 **File:** `internal/worker/worker.go:127-128`
 Result and progress channels are buffered to the full job count. For large runs (e.g. 100k requests) this pre-allocates a large amount of memory unnecessarily. A fixed-size buffer (e.g. 1024) with natural backpressure is sufficient.
 
 ---
 
+FIXED
 ### 5. HTTP request recreated per job
 **File:** `internal/worker/worker.go:251-256`
 A new `*http.Request` is constructed for every job even when all requests are identical. The request should be built once as a template and cloned via `req.Clone(ctx)` for each job.
 
 ---
 
+FIXED
 ### 6. TUI status code map panics on result code 0
 **File:** `internal/tui/update.go:161`
 A network error produces `ResultCode == 0`. Writing `m.statusCodes[0]++` is valid Go but semantically wrong and causes incorrect status code reporting. The write should be guarded:
@@ -54,6 +58,7 @@ if r.ResultCode > 0 {
 
 ## Medium Priority
 
+FIXED
 ### 7. RPS ticker does not account for response latency
 **File:** `internal/worker/worker.go:141-150`
 `time.NewTicker(time.Second / time.Duration(cfg.RPS))` controls dispatch rate only. When responses are slow, actual RPS will be lower than configured with no warning to the user. Should use `golang.org/x/time/rate` (token bucket) and report achieved vs. configured RPS in output.
@@ -82,6 +87,12 @@ The second question is answered by issue #5 above (no — clone a template inste
 
 ---
 
+FIXED
 ### 11. No upper bound on `--rps` flag
 **File:** `cmd/run.go`
 There is no maximum validation on the `--rps` value. At 1,000,000 RPS the ticker interval drops to 1µs, which is unrealistic and will silently produce inaccurate results. A reasonable cap or warning should be added.
+
+
+## Low Priority
+**File:** `cmd/run.go`
+When tests are passed in via a definition file, and the `--distributed` flag is passed, the tests are not ran in distributed mode. 

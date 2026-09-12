@@ -2,6 +2,7 @@ package logger
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -95,7 +96,10 @@ func TestSetOutputDestination(t *testing.T) {
 		}
 	}
 
-	l := New("info", "yahba.log", false)
+	fp := os.TempDir()
+	ps := string(os.PathSeparator)
+	fileName := fmt.Sprintf("%s%syahba.log", fp, ps)
+	l := New("info", fileName, false)
 	defer func() {
 		if l.Logger != nil && l.Logger.Writer() != os.Stdout && l.Logger.Writer() != os.Stderr {
 			if f, ok := l.Logger.Writer().(*os.File); ok {

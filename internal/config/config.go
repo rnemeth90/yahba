@@ -119,7 +119,7 @@ func (config *Config) Validate() error {
 		}
 	}
 
-	if config.RPS <= 0 {
+	if config.RPS <= 0 || config.RPS > 1000 {
 		return ErrInvalidRPS
 	}
 

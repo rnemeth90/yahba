@@ -1,5 +1,3 @@
-// Package coordinator implements the server side of distributed load testing.
-// It manages agent registration, distributes work, and aggregates results.
 package coordinator
 
 import (
@@ -68,7 +66,7 @@ func (c *Coordinator) Run() error {
 	mux.HandleFunc("POST /api/v1/results/{agentID}", c.handlePostResults)
 
 	c.logger.Info("Coordinator listening on %s", c.port)
-	return http.ListenAndServe(c.port, mux)
+	return http.ListenAndServe("127.0.0.1:"+c.port, mux)
 }
 
 // --- Handlers ---

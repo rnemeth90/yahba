@@ -17,6 +17,7 @@ type Report struct {
 	ErrorBreakdown ErrorBreakdown `json:"error_breakdown"`
 	Latency        Latency        `json:"latency"`
 	Throughput     Throughput     `json:"throughput"`
+	TargetRPS      int            `json:"target_rps"`
 	StatusCodes    map[int]int    `json:"status_codes"`
 	TotalRequests  int            `json:"total_requests"`
 	Successes      int            `json:"success"`
@@ -57,12 +58,15 @@ type Latency struct {
 	P99 string `json:"p99"`
 }
 
-// Throughput captures total bytes sent/received and their rates per second.
+// Throughput captures total bytes sent/received and their rates per second,
+// along with the achieved requests/sec (as opposed to Report.TargetRPS, the
+// configured rate).
 type Throughput struct {
 	TotalBytesSent         int     `json:"total_bytes_sent"`
 	TotalBytesReceived     int     `json:"total_bytes_received"`
 	BytesSentPerSecond     float64 `json:"bytes_sent_per_second"`
 	BytesReceivedPerSecond float64 `json:"bytes_received_per_second"`
+	RequestsPerSecond      float64 `json:"requests_per_second"`
 }
 
 // CalculateLatencyMetrics computes latency metrics from individual request results and populates the Latency field of the report.
@@ -165,6 +169,7 @@ func Aggregate(results []Result) Report {
 	r.Throughput.TotalBytesReceived = totalBytesReceived
 	r.Throughput.BytesSentPerSecond = util.CalculateBytesPerSecond(float64(totalBytesSent), r.Duration.Seconds())
 	r.Throughput.BytesReceivedPerSecond = util.CalculateBytesPerSecond(float64(totalBytesReceived), r.Duration.Seconds())
+	r.Throughput.RequestsPerSecond = util.CalculateBytesPerSecond(float64(r.TotalRequests), r.Duration.Seconds())
 
 	r.CalculateLatencyMetrics()
 
