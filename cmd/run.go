@@ -287,7 +287,7 @@ func runFromDefFile(ctx context.Context, c config.Config) error {
 		reqConfig.RPS = reqDef.RPS
 		reqConfig.Requests = reqDef.Requests
 		reqConfig.Headers = ""
-		reqConfig.ParsedHeaders = headerMapToParsedHeaders(reqDef.Headers)
+		reqConfig.ParsedHeaders = util.HeaderMapToParsedHeaders(reqDef.Headers)
 
 		if err := reqConfig.Validate(); err != nil {
 			return fmt.Errorf("invalid configuration for request %q: %w", reqDef.Name, err)
@@ -325,19 +325,6 @@ func runFromDefFile(ctx context.Context, c config.Config) error {
 	}
 
 	return generateReport(c, combined)
-}
-
-// headerMapToParsedHeaders converts a def file's header map into the
-// []util.Header format expected by the worker/client.
-func headerMapToParsedHeaders(headers map[string]string) []util.Header {
-	if len(headers) == 0 {
-		return nil
-	}
-	parsed := make([]util.Header, 0, len(headers))
-	for k, v := range headers {
-		parsed = append(parsed, util.Header{Key: k, Value: v})
-	}
-	return parsed
 }
 
 func generateReport(c config.Config, r report.Report) error {

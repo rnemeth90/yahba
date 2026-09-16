@@ -109,13 +109,14 @@ func TestSetOutputDestination(t *testing.T) {
 	}()
 	l.Info("Test file output message")
 
-	fileOutput := l.Logger.Writer().(*os.File)
+	// fileOutput := l.Logger.Writer().(*os.File)
+	fileOutput := l.File
 	data, err := os.ReadFile(fileOutput.Name())
 	if err != nil {
 		t.Fatalf("failed to read log file: %v", err)
 	}
 	if !strings.Contains(string(data), "Test file output message") {
-		t.Errorf("expected message to be logged to file, got %v", string(data))
+		t.Errorf("expected message to be logged to file, got %s", string(data))
 	}
 
 	err = l.SetOutputDestination("")

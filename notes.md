@@ -38,18 +38,18 @@
 - [x] **Remove Commented Code**: Clean up any unused or commented-out code. 
 - [x] **Import Test Definition File**: Provide users with ability to define tests in a file with a dependency chain
 - [x] **Test Server**: Build a test server for simulations.
+- [x] **Fix sleep parameter**: Sleep is not currently implemented, but still exposed as a parameter
+- [x] **Makefile**: Create a Makefile for streamlined builds and tasks.
+- [x] **CI/CD**: Set up continuous integration and deployment pipelines.
+- [x] **Scenario-Based Testing**: Chain multiple requests together in a single test run (e.g., authenticate then hit a protected resource). Define flows declaratively in YAML/JSON config files rather than requiring scripting. This is something most simple benchmarking tools lack.
 
 #### In Progress
 - [ ] **Distributed Load Generation**: Coordinate multiple YAHBA agents to generate load from different machines. The `server` subcommand is already a seed for this. A controller node could distribute jobs across agents and aggregate results into a single report.
 
 #### Pending Tasks / Feature ideas
 
-- [x] **Fix sleep parameter**: Sleep is not currently implemented, but still exposed as a parameter
 - [ ] **HTTP/3 Support**: Add support for HTTP/3.
 - [ ] **Plugin System**: Enable extensibility for custom report formats, etc.
 - [ ] **Rate Limiting Logic**: Implement logic for rate limiting (e.g., exponential backoffs for failed requests).
-- [x] **Makefile**: Create a Makefile for streamlined builds and tasks.
-- [ ] **CI/CD**: Set up continuous integration and deployment pipelines.
-- [x] **Scenario-Based Testing**: Chain multiple requests together in a single test run (e.g., authenticate then hit a protected resource). Define flows declaratively in YAML/JSON config files rather than requiring scripting. This is something most simple benchmarking tools lack.
 - [ ] **Comparison Mode**: Run the same test against two endpoints (e.g., old vs. new deployment) and produce a side-by-side diff of latency, throughput, and error rates. Useful for regression testing and deploy confidence checks.
 - [ ] **Ramp-Up Profiles**: Support gradually increasing RPS over time and stepped load profiles instead of only constant rate.

@@ -1,15 +1,23 @@
 // Package rawsocket provides primitives for crafting and sending raw IPv4
 // packets with hand-built IP headers via a raw socket.
 //
-// Requires root / CAP_NET_RAW on Linux, or administrator rights on macOS.
+// Requires root / CAP_NET_RAW on Linux, or administrator rights on macOS/Windows.
 package rawsocket
 
 import (
 	"bytes"
 	"encoding/binary"
-	"fmt"
 	"net"
-	"syscall"
+)
+
+// IANA protocol numbers used for the IP header's Protocol field. These are
+// defined here (rather than sourced from syscall.IPPROTO_*) because they are
+// platform-independent and some platforms' syscall packages don't expose all
+// of them (e.g. Windows' syscall package lacks IPPROTO_ICMP).
+const (
+	ProtoICMP = 1
+	ProtoTCP  = 6
+	ProtoUDP  = 17
 )
 
 // IPHeader represents a simplified IPv4 header (20 bytes, no options).
@@ -96,29 +104,4 @@ func ICMPEchoRequest(id, seq uint16) []byte {
 	binary.BigEndian.PutUint16(msg[6:8], seq)
 	binary.BigEndian.PutUint16(msg[2:4], IPChecksum(msg))
 	return msg
-}
-
-// CreateRawSocket opens an AF_INET raw socket and sets IP_HDRINCL so the
-// caller provides a complete IP header.
-func CreateRawSocket() (int, error) {
-	fd, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_RAW, syscall.IPPROTO_RAW)
-	if err != nil {
-		return 0, fmt.Errorf("%w: %v", ErrSocketCreate, err)
-	}
-	if err := syscall.SetsockoptInt(fd, syscall.IPPROTO_IP, syscall.IP_HDRINCL, 1); err != nil {
-		syscall.Close(fd)
-		return 0, fmt.Errorf("%w: IP_HDRINCL: %v", ErrSocketCreate, err)
-	}
-	return fd, nil
-}
-
-// SendPacket assembles the final wire packet and transmits it.
-func SendPacket(fd int, header *IPHeader, payload []byte) error {
-	packet := append(header.Bytes(), payload...)
-	addr := &syscall.SockaddrInet4{}
-	copy(addr.Addr[:], header.DstAddr[:])
-	if err := syscall.Sendto(fd, packet, 0, addr); err != nil {
-		return fmt.Errorf("%w: %v", ErrSocketSend, err)
-	}
-	return nil
 }

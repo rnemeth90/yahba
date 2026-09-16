@@ -24,7 +24,6 @@ package cmd
 import (
 	"fmt"
 	"net"
-	"syscall"
 
 	"github.com/rnemeth90/yahba/internal/rawsocket"
 	"github.com/spf13/cobra"
@@ -67,11 +66,11 @@ Requires root / CAP_NET_RAW privileges on Linux, or administrator rights on macO
 		var proto uint8
 		switch rawProtocol {
 		case "icmp":
-			proto = syscall.IPPROTO_ICMP
+			proto = rawsocket.ProtoICMP
 		case "tcp":
-			proto = syscall.IPPROTO_TCP
+			proto = rawsocket.ProtoTCP
 		case "udp":
-			proto = syscall.IPPROTO_UDP
+			proto = rawsocket.ProtoUDP
 		default:
 			return fmt.Errorf("unsupported protocol %q – use icmp, tcp, or udp", rawProtocol)
 		}
@@ -80,7 +79,7 @@ Requires root / CAP_NET_RAW privileges on Linux, or administrator rights on macO
 		if err != nil {
 			return err
 		}
-		defer syscall.Close(fd)
+		defer rawsocket.Close(fd)
 
 		for i := 0; i < rawCount; i++ {
 			var payload []byte

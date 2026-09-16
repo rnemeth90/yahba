@@ -250,8 +250,8 @@ func processResults(cfg config.Config, resultChan <-chan report.Result, progress
 	report.TargetRPS = cfg.RPS
 	report.Throughput.TotalBytesSent = totalBytesSent
 	report.Throughput.TotalBytesReceived = totalBytesReceived
-	report.Throughput.BytesSentPerSecond = util.CalculateBytesPerSecond(float64(totalBytesSent), duration.Seconds())
-	report.Throughput.BytesReceivedPerSecond = util.CalculateBytesPerSecond(float64(totalBytesReceived), duration.Seconds())
+	report.Throughput.BytesSentPerSecond = util.CalculateBytesPerSecond(float64(totalBytesSent), report.Duration.Seconds())
+	report.Throughput.BytesReceivedPerSecond = util.CalculateBytesPerSecond(float64(totalBytesReceived), report.Duration.Seconds())
 	report.Throughput.RequestsPerSecond = util.CalculateBytesPerSecond(float64(totalRequests), report.Duration.Seconds())
 	report.StatusCodes = resultCodes
 	report.CalculateLatencyMetrics()
@@ -322,8 +322,8 @@ func (w *Worker) processResponse(result report.Result, resp *http.Response, star
 	}
 
 	// bytesReceived, err := httputil.DumpResponse(resp, true)
-	n, err := io.Copy(io.Discard, resp.Body)
-	if err != nil || n <= 0 {
+	_, err := io.Copy(io.Discard, resp.Body)
+	if err != nil {
 		w.Config.Logger.Error("worker %d: Failed to dump response from %s: %v", w.ID, job.Host, err)
 		result.Error = err
 		result.EndTime = time.Now()

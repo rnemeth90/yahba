@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/charmbracelet/bubbles/progress"
@@ -20,6 +21,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 		m.progress.Width = min(msg.Width-20, 80)
+		var cmd tea.Cmd
+		m.filepicker, cmd = m.filepicker.Update(msg)
+		return m, cmd
+
+	case clearErrorMsg:
+		m.err = nil
 		return m, nil
 
 	case resultMsg:
@@ -65,6 +72,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.updateFormInputs(msg)
 	}
 
+	// Pass unhandled messages (e.g. the filepicker's internal directory-read
+	// results) to the filepicker while it's active.
+	if m.state == stateFilepicker {
+		var cmd tea.Cmd
+		m.filepicker, cmd = m.filepicker.Update(msg)
+		return m, cmd
+	}
+
 	return m, nil
 }
 
@@ -73,6 +88,8 @@ func (m model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch m.state {
 	case stateForm:
 		return m.handleFormKey(msg)
+	case stateFilepicker:
+		return m.handleFilepickerKey(msg)
 	case stateRunning:
 		return m.handleRunningKey(msg)
 	case stateReport:
@@ -97,12 +114,56 @@ func (m model) handleFormKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.focusIdx = (m.focusIdx - 1 + inputCount) % inputCount
 		return m.focusInput()
 
+	case "ctrl+o":
+		m.state = stateFilepicker
+		m.formErr = ""
+		m.err = nil
+		return m, m.filepicker.Init()
+
 	case "enter":
 		cmd := m.startTest()
 		return m, cmd
 	}
 
 	return m.updateFormInputs(msg)
+}
+
+// --- Filepicker key handling ---
+
+// handleFilepickerKey lets the user browse for a test definition file. "q"
+// cancels back to the form; "ctrl+c" quits the whole app; every other key is
+// forwarded to the filepicker component itself (navigation, open, select).
+func (m model) handleFilepickerKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "ctrl+c":
+		return m, tea.Quit
+	case "q":
+		m.state = stateForm
+		m.err = nil
+		return m, nil
+	}
+
+	var cmd tea.Cmd
+	m.filepicker, cmd = m.filepicker.Update(msg)
+
+	if didSelect, path := m.filepicker.DidSelectFile(msg); didSelect {
+		m.selectedFile = path
+		runCmd := m.startDefFileTest(path)
+		if runCmd == nil {
+			// Validation/parsing failed; formErr is set, show it on the form.
+			m.state = stateForm
+			return m, nil
+		}
+		return m, runCmd
+	}
+
+	if didSelect, path := m.filepicker.DidSelectDisabledFile(msg); didSelect {
+		m.err = fmt.Errorf("%q is not a valid definition file (expected .yaml or .yml)", path)
+		m.selectedFile = ""
+		return m, tea.Batch(cmd, clearErrorAfter(3*time.Second))
+	}
+
+	return m, cmd
 }
 
 // focusInput blurs all inputs and focuses the one at focusIdx.
@@ -165,7 +226,8 @@ func (m model) handleResult(r report.Result) (tea.Model, tea.Cmd) {
 	m.bytesSent += r.BytesSent
 	m.bytesReceived += r.BytesReceived
 	m.totalLatency += r.ElapsedTime
-	m.latencies = append(m.latencies, r.ElapsedTime)
+
+	m.latencies.Push(r.ElapsedTime)
 
 	if m.minLatency == 0 || r.ElapsedTime < m.minLatency {
 		m.minLatency = r.ElapsedTime

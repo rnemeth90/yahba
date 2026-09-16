@@ -16,6 +16,8 @@ func (m model) View() string {
 	switch m.state {
 	case stateForm:
 		content = m.viewForm()
+	case stateFilepicker:
+		content = m.viewFilepicker()
 	case stateRunning:
 		content = m.viewRunning()
 	case stateReport:
@@ -60,7 +62,34 @@ func (m model) viewForm() string {
 		b.WriteString("\n")
 	}
 
-	help := helpStyle.Render("enter start  |  tab/shift+tab navigate  |  esc quit")
+	help := helpStyle.Render("enter start  |  tab/shift+tab navigate  |  ctrl+o load from file  |  esc quit")
+	b.WriteString("\n")
+	b.WriteString(help)
+
+	return b.String()
+}
+
+// --- Filepicker View ---
+
+func (m model) viewFilepicker() string {
+	var b strings.Builder
+
+	title := titleStyle.Render("Select a Test Definition File")
+	b.WriteString(title)
+	b.WriteString("\n\n")
+
+	b.WriteString(targetStyle.Render("  Directory: "))
+	b.WriteString(targetValueStyle.Render(m.filepicker.CurrentDirectory))
+	b.WriteString("\n\n")
+
+	b.WriteString(m.filepicker.View())
+
+	if m.err != nil {
+		b.WriteString("\n")
+		b.WriteString(formErrorStyle.Render("  Error: " + m.err.Error()))
+	}
+
+	help := helpStyle.Render("enter open/select  |  h/backspace back  |  q cancel  |  ctrl+c quit")
 	b.WriteString("\n")
 	b.WriteString(help)
 
@@ -78,11 +107,8 @@ func (m model) viewRunning() string {
 	b.WriteString("\n\n")
 
 	// Target info
-	b.WriteString(targetStyle.Render("  Target: "))
-	b.WriteString(targetValueStyle.Render(m.cfg.URL))
-	b.WriteString("    ")
-	b.WriteString(targetStyle.Render("Method: "))
-	b.WriteString(targetValueStyle.Render(m.cfg.Method))
+	b.WriteString(targetStyle.Render("  Running: "))
+	b.WriteString(targetValueStyle.Render(m.runLabel))
 	b.WriteString("\n\n")
 
 	// Progress bar
@@ -103,7 +129,7 @@ func (m model) viewRunning() string {
 	if graphWidth < 20 {
 		graphWidth = 20
 	}
-	b.WriteString(renderLatencyGraph(m.latencies, graphWidth))
+	b.WriteString(renderLatencyGraph(m.latencySnapshot(), m.completed, graphWidth))
 	b.WriteString("\n\n")
 
 	// Panels
@@ -253,7 +279,7 @@ func (m model) viewReport() string {
 	if graphWidth < 20 {
 		graphWidth = 20
 	}
-	b.WriteString(renderLatencyGraph(m.latencies, graphWidth))
+	b.WriteString(renderLatencyGraph(m.latencySnapshot(), m.completed, graphWidth))
 	b.WriteString("\n\n")
 
 	// Latency panel
@@ -332,8 +358,11 @@ func (m model) viewReport() string {
 var sparkBlocks = []string{"▁", "▂", "▃", "▄", "▅", "▆", "▇", "█"}
 
 // renderLatencyGraph draws a sparkline chart of per-request latencies.
+// latencies is a (possibly bounded) recent window of samples; totalCount is
+// the true cumulative number of requests completed so far, used for the
+// "last N of TOTAL" label since latencies may not hold the full history.
 // maxWidth controls the maximum number of columns for the chart area.
-func renderLatencyGraph(latencies []time.Duration, maxWidth int) string {
+func renderLatencyGraph(latencies []time.Duration, totalCount int, maxWidth int) string {
 	if len(latencies) == 0 {
 		return panelStyle.Width(maxWidth + 4).Render(
 			panelTitleStyle.Render("Latency per Request") + "\n" +
@@ -418,9 +447,9 @@ func renderLatencyGraph(latencies []time.Duration, maxWidth int) string {
 	b.WriteString(minLabel + " " + graphAxisStyle.Render("┤") + baseline)
 
 	// X-axis annotation
-	reqCount := fmt.Sprintf("%d requests", len(latencies))
-	if len(latencies) > len(data) {
-		reqCount = fmt.Sprintf("last %d of %d", len(data), len(latencies))
+	reqCount := fmt.Sprintf("%d requests", totalCount)
+	if totalCount > len(data) {
+		reqCount = fmt.Sprintf("last %d of %d", len(data), totalCount)
 	}
 	b.WriteString("\n")
 	b.WriteString(strings.Repeat(" ", 12))

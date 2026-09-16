@@ -43,3 +43,16 @@ func ParseHeaders(raw string) ([]Header, error) {
 
 	return headers, nil
 }
+
+// HeaderMapToParsedHeaders converts a def file's header map (as parsed from
+// YAML) into the []Header format expected by the worker/client.
+func HeaderMapToParsedHeaders(headers map[string]string) []Header {
+	if len(headers) == 0 {
+		return nil
+	}
+	parsed := make([]Header, 0, len(headers))
+	for k, v := range headers {
+		parsed = append(parsed, Header{Key: k, Value: v})
+	}
+	return parsed
+}

@@ -15,10 +15,10 @@ TARGETS = \
 
 .PHONY: build test format clean release tag help check-version
 
-build: ## Build for the current platform
+build: ## build for the current platform
 	go build -o $(BINARY_NAME) .
 
-test: ## Run all tests
+test: ## run all tests
 	go test ./...
 
 format: ## Format all Go source files

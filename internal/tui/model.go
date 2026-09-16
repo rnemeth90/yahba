@@ -4,9 +4,12 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
 	"time"
 
+	"github.com/charmbracelet/bubbles/filepicker"
 	"github.com/charmbracelet/bubbles/progress"
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textinput"
@@ -15,6 +18,7 @@ import (
 
 	"github.com/rnemeth90/yahba/internal/config"
 	"github.com/rnemeth90/yahba/internal/logger"
+	"github.com/rnemeth90/yahba/internal/queue"
 	"github.com/rnemeth90/yahba/internal/report"
 	"github.com/rnemeth90/yahba/internal/util"
 	"github.com/rnemeth90/yahba/internal/worker"
@@ -24,10 +28,16 @@ import (
 type appState int
 
 const (
-	stateForm    appState = iota // configuration form
-	stateRunning                 // test in progress
-	stateReport                  // final report
+	stateForm       appState = iota // configuration form
+	stateFilepicker                 // browsing for a definition file
+	stateRunning                    // test in progress
+	stateReport                     // final report
 )
+
+// latencyBufferSize bounds how many recent per-request latencies are kept
+// for the graph. The graph only ever renders the last graphWidth (<=80)
+// columns anyway, so this cap is generous headroom, not a display limit.
+const latencyBufferSize = 512
 
 // Form input indices
 const (
@@ -119,6 +129,7 @@ type model struct {
 
 	// Running: live stats
 	cfg           config.Config
+	runLabel      string // human-readable description of what's running, shown on the running screen
 	totalRequests int
 	completed     int
 	successes     int
@@ -129,7 +140,7 @@ type model struct {
 	minLatency    time.Duration
 	maxLatency    time.Duration
 	totalLatency  time.Duration
-	latencies     []time.Duration // per-request latencies for the graph
+	latencies     *queue.CircularBuffer // recent per-request latencies for the graph; bounded, oldest evicted first
 	bytesSent     int
 	bytesReceived int
 
@@ -144,6 +155,19 @@ type model struct {
 	// UI components
 	progress progress.Model
 	spinner  spinner.Model
+
+	// filepicker elements, used to browse for a test definition file
+	filepicker   filepicker.Model
+	selectedFile string
+	err          error
+}
+
+type clearErrorMsg struct{}
+
+func clearErrorAfter(t time.Duration) tea.Cmd {
+	return tea.Tick(t, func(_ time.Time) tea.Msg {
+		return clearErrorMsg{}
+	})
 }
 
 // New creates the initial TUI model in form state.
@@ -196,38 +220,32 @@ func New() model {
 	s.Spinner = spinner.Dot
 	s.Style = lipgloss.NewStyle().Foreground(colorPrimary)
 
+	fp := filepicker.New()
+	fp.AllowedTypes = []string{".yaml", ".yml"}
+	if cwd, err := os.Getwd(); err == nil {
+		fp.CurrentDirectory = cwd
+	}
+
 	return model{
-		state:    stateForm,
-		inputs:   inputs,
-		focusIdx: 0,
-		progress: p,
-		spinner:  s,
+		state:      stateForm,
+		inputs:     inputs,
+		focusIdx:   0,
+		progress:   p,
+		spinner:    s,
+		filepicker: fp,
+		latencies:  queue.NewCircularBuffer(latencyBufferSize),
 	}
 }
 
 // Init is the first Bubble Tea lifecycle method.
 func (m model) Init() tea.Cmd {
-	return tea.Batch(textinput.Blink, tea.WindowSize())
+	return tea.Batch(textinput.Blink, tea.WindowSize(), m.filepicker.Init())
 }
 
-// buildConfig parses the form inputs into a config.Config and validates it.
-func (m *model) buildConfig() (config.Config, error) {
-	url := m.inputs[inputURL].Value()
-	method := m.inputs[inputMethod].Value()
-	if method == "" {
-		method = "GET"
-	}
-
-	requests, err := strconv.Atoi(m.inputs[inputRequests].Value())
-	if err != nil || requests <= 0 {
-		return config.Config{}, fmt.Errorf("requests must be a positive integer")
-	}
-
-	rps, err := strconv.Atoi(m.inputs[inputRPS].Value())
-	if err != nil || rps <= 0 {
-		return config.Config{}, fmt.Errorf("RPS must be a positive integer")
-	}
-
+// buildSharedConfig parses the form fields common to both ad-hoc and
+// definition-file runs (worker pool size, timeout, keep-alives) into a
+// config.Config template.
+func (m *model) buildSharedConfig() (config.Config, error) {
 	keepAlives, err := strconv.ParseBool(m.inputs[inputKeepAlives].Value())
 	if err != nil {
 		return config.Config{}, fmt.Errorf("keep-alives must be true or false")
@@ -243,22 +261,46 @@ func (m *model) buildConfig() (config.Config, error) {
 		return config.Config{}, fmt.Errorf("timeout must be a positive integer")
 	}
 
-	cfg := config.Config{
-		URL:          url,
-		Method:       method,
-		Requests:     requests,
-		RPS:          rps,
+	return config.Config{
 		KeepAlive:    keepAlives,
 		Workers:      workers,
 		Timeout:      timeout,
-		Headers:      m.inputs[inputHeaders].Value(),
-		Body:         m.inputs[inputBody].Value(),
 		LogLevel:     "error",
 		OutputFormat: "raw",
 		OutputFile:   "stdout",
 		Silent:       true,
 		Logger:       logger.New("error", "stdout", true),
+	}, nil
+}
+
+// buildConfig parses the form inputs into a config.Config and validates it.
+func (m *model) buildConfig() (config.Config, error) {
+	cfg, err := m.buildSharedConfig()
+	if err != nil {
+		return config.Config{}, err
 	}
+
+	method := m.inputs[inputMethod].Value()
+	if method == "" {
+		method = "GET"
+	}
+
+	requests, err := strconv.Atoi(m.inputs[inputRequests].Value())
+	if err != nil || requests <= 0 {
+		return config.Config{}, fmt.Errorf("requests must be a positive integer")
+	}
+
+	rps, err := strconv.Atoi(m.inputs[inputRPS].Value())
+	if err != nil || rps <= 0 {
+		return config.Config{}, fmt.Errorf("RPS must be a positive integer")
+	}
+
+	cfg.URL = m.inputs[inputURL].Value()
+	cfg.Method = method
+	cfg.Requests = requests
+	cfg.RPS = rps
+	cfg.Headers = m.inputs[inputHeaders].Value()
+	cfg.Body = m.inputs[inputBody].Value()
 
 	if cfg.Headers != "" {
 		parsedHeaders, err := util.ParseHeaders(cfg.Headers)
@@ -275,16 +317,17 @@ func (m *model) buildConfig() (config.Config, error) {
 	return cfg, nil
 }
 
-// startTest kicks off the load test and returns initial commands.
-func (m *model) startTest() tea.Cmd {
-	cfg, err := m.buildConfig()
-	if err != nil {
-		m.formErr = err.Error()
-		return nil
+// workerFactory returns a WorkerFactory that constructs plain worker.Worker instances.
+func workerFactory() worker.WorkerFactory {
+	return func(id int, jobChan <-chan worker.Job, resultChan chan<- report.Result, client *http.Client, c config.Config) worker.Worker {
+		return *worker.NewWorker(id, jobChan, resultChan, client, c)
 	}
+}
 
-	m.cfg = cfg
-	m.totalRequests = cfg.Requests
+// resetRunState clears live-run stats ahead of dispatching a test (ad-hoc or
+// definition-file) and returns a fresh cancellable context for it.
+func (m *model) resetRunState(total int) context.Context {
+	m.totalRequests = total
 	m.completed = 0
 	m.successes = 0
 	m.failures = 0
@@ -296,29 +339,25 @@ func (m *model) startTest() tea.Cmd {
 	m.totalLatency = 0
 	m.bytesSent = 0
 	m.bytesReceived = 0
-	m.latencies = nil
+	m.latencies = queue.NewCircularBuffer(latencyBufferSize)
 	m.report = nil
 	m.formErr = ""
 
-	// Build jobs
-	jobs := make([]worker.Job, cfg.Requests)
-	for i := 0; i < cfg.Requests; i++ {
-		jobs[i] = worker.Job{ID: i, Host: cfg.URL, Method: cfg.Method, Body: cfg.Body}
-	}
-
-	factory := func(id int, jobChan <-chan worker.Job, resultChan chan<- report.Result, client *http.Client, c config.Config) worker.Worker {
-		return *worker.NewWorker(id, jobChan, resultChan, client, c)
-	}
-
 	ctx, cancel := context.WithCancel(context.Background())
 	m.cancelFunc = cancel
+	return ctx
+}
 
-	progressChan := make(chan report.Result, cfg.Requests)
+// launchTest wires up progress/report channels for a background run
+// function, transitions the model into the running state, and returns the
+// commands needed to start listening for updates.
+func (m *model) launchTest(total int, run func(progressChan chan<- report.Result, reportChan chan<- report.Report)) tea.Cmd {
+	progressChan := make(chan report.Result, total)
 	reportChan := make(chan report.Report, 1)
 	m.progressChan = progressChan
 	m.reportChan = reportChan
 
-	go worker.Work(ctx, cfg, jobs, reportChan, factory, progressChan)
+	go run(progressChan, reportChan)
 
 	m.state = stateRunning
 
@@ -330,6 +369,67 @@ func (m *model) startTest() tea.Cmd {
 	)
 }
 
+// startTest kicks off an ad-hoc load test built from the form inputs.
+func (m *model) startTest() tea.Cmd {
+	cfg, err := m.buildConfig()
+	if err != nil {
+		m.formErr = err.Error()
+		return nil
+	}
+
+	ctx := m.resetRunState(cfg.Requests)
+	m.cfg = cfg
+	m.runLabel = fmt.Sprintf("%s %s", cfg.Method, cfg.URL)
+
+	jobs := make([]worker.Job, cfg.Requests)
+	for i := 0; i < cfg.Requests; i++ {
+		jobs[i] = worker.Job{ID: i, Host: cfg.URL, Method: cfg.Method, Body: cfg.Body}
+	}
+
+	factory := workerFactory()
+
+	return m.launchTest(cfg.Requests, func(progressChan chan<- report.Result, reportChan chan<- report.Report) {
+		worker.Work(ctx, cfg, jobs, reportChan, factory, progressChan)
+	})
+}
+
+// startDefFileTest validates and parses a test definition file, then runs
+// all of its named requests (in dependency order) as a single test,
+// aggregating their results into one combined report.
+func (m *model) startDefFileTest(path string) tea.Cmd {
+	baseCfg, err := m.buildSharedConfig()
+	if err != nil {
+		m.formErr = err.Error()
+		return nil
+	}
+
+	if err := config.ValidateDefFile(path); err != nil {
+		m.formErr = fmt.Sprintf("invalid definition file: %v", err)
+		return nil
+	}
+
+	def, err := config.ParseDefFile(path)
+	if err != nil {
+		m.formErr = fmt.Sprintf("error parsing definition file: %v", err)
+		return nil
+	}
+
+	total := 0
+	for _, r := range def.Requests {
+		total += r.Requests
+	}
+
+	ctx := m.resetRunState(total)
+	m.cfg = baseCfg
+	m.runLabel = fmt.Sprintf("definition file: %s (%d requests)", filepath.Base(path), len(def.Requests))
+
+	factory := workerFactory()
+
+	return m.launchTest(total, func(progressChan chan<- report.Result, reportChan chan<- report.Report) {
+		runDefFileTest(ctx, baseCfg, def, factory, progressChan, reportChan)
+	})
+}
+
 // resetToForm resets the model to the form state, preserving input values.
 func (m *model) resetToForm() {
 	m.state = stateForm
@@ -339,10 +439,12 @@ func (m *model) resetToForm() {
 	m.successes = 0
 	m.failures = 0
 	m.statusCodes = nil
-	m.latencies = nil
+	m.latencies = queue.NewCircularBuffer(latencyBufferSize)
 	m.progressChan = nil
 	m.reportChan = nil
 	m.cancelFunc = nil
+	m.selectedFile = ""
+	m.err = nil
 
 	// re-focus first input
 	for i := range m.inputs {
@@ -350,4 +452,15 @@ func (m *model) resetToForm() {
 	}
 	m.focusIdx = 0
 	m.inputs[0].Focus()
+}
+
+// latencySnapshot returns the currently buffered latencies, oldest first, as
+// a plain slice for rendering.
+func (m model) latencySnapshot() []time.Duration {
+	items := m.latencies.Items()
+	out := make([]time.Duration, len(items))
+	for i, v := range items {
+		out[i] = v.(time.Duration)
+	}
+	return out
 }
