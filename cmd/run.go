@@ -106,7 +106,11 @@ func init() {
 
 func run(ctx context.Context, c config.Config) error {
 	if c.TestFile != "" {
-		return runFromDefFile(ctx, c)
+		specs, err := loadDefFileSpecs(c)
+		if err != nil {
+			return err
+		}
+		return runRequests(ctx, c, specs, distributed)
 	}
 
 	c.Logger.Debug("Validating configuration")
@@ -116,7 +120,14 @@ func run(ctx context.Context, c config.Config) error {
 	c.Logger.Debug("Configuration validated successfully")
 
 	if distributed {
-		return runDistributed(ctx, c)
+		return runRequests(ctx, c, []requestSpec{{
+			Name:     "ad-hoc",
+			URL:      c.URL,
+			Method:   c.Method,
+			Body:     c.Body,
+			RPS:      c.RPS,
+			Requests: c.Requests,
+		}}, true)
 	}
 
 	// todo: do we need to parse headers HERE? why?
@@ -129,11 +140,14 @@ func run(ctx context.Context, c config.Config) error {
 		c.ParsedHeaders = parsedHeaders
 	}
 
-	// todo: do we need to create individual jobs if the jobs are all the same?
+	// worker.Work dispatches one job per rate-limiter tick, so a distinct
+	// slice entry is needed per request even though the content is
+	// identical; the per-job ID isn't read anywhere downstream.
 	c.Logger.Debug("Creating %d jobs for requests to %s", c.Requests, c.URL)
+	job := worker.Job{Host: c.URL, Method: c.Method, Body: c.Body}
 	jobs := make([]worker.Job, c.Requests)
-	for i := 0; i < c.Requests; i++ {
-		jobs[i] = worker.Job{ID: i, Host: c.URL, Method: c.Method, Body: c.Body}
+	for i := range jobs {
+		jobs[i] = job
 	}
 
 	factory := func(id int, jobChan <-chan worker.Job, resultChan chan<- report.Result, client *http.Client, cfg config.Config) worker.Worker {
@@ -152,8 +166,150 @@ func run(ctx context.Context, c config.Config) error {
 	}
 }
 
-// runDistributed submits the test to a coordinator and polls until complete.
-func runDistributed(ctx context.Context, c config.Config) error {
+// requestSpec describes a single named request to execute, either the
+// top-level ad hoc request or one of several named requests parsed from a
+// definition file.
+type requestSpec struct {
+	Name     string
+	URL      string
+	Method   string
+	Body     string
+	RPS      int
+	Requests int
+	Headers  map[string]string
+}
+
+// loadDefFileSpecs validates and parses a test definition file into the
+// request specs it describes.
+func loadDefFileSpecs(c config.Config) ([]requestSpec, error) {
+	c.Logger.Debug("Validating definition file")
+	if err := config.ValidateDefFile(c.TestFile); err != nil {
+		return nil, fmt.Errorf("invalid definition file: %w", err)
+	}
+
+	def, err := config.ParseDefFile(c.TestFile)
+	if err != nil {
+		return nil, fmt.Errorf("error while parsing def file: %w", err)
+	}
+	c.Logger.Debug("Parsed %d request(s) from definition file %s", len(def.Requests), c.TestFile)
+
+	specs := make([]requestSpec, 0, len(def.Requests))
+	for _, reqDef := range def.Requests {
+		specs = append(specs, requestSpec{
+			Name:     reqDef.Name,
+			URL:      reqDef.URL,
+			Method:   reqDef.Method,
+			Body:     reqDef.Body,
+			RPS:      reqDef.RPS,
+			Requests: reqDef.Requests,
+			Headers:  reqDef.Headers,
+		})
+	}
+	return specs, nil
+}
+
+// runRequests runs each request spec in order -- either locally via the
+// worker pool or remotely via a distributed coordinator -- and aggregates
+// all results into a single combined report.
+func runRequests(ctx context.Context, c config.Config, specs []requestSpec, distributed bool) error {
+	factory := func(id int, jobChan <-chan worker.Job, resultChan chan<- report.Result, client *http.Client, cfg config.Config) worker.Worker {
+		return *worker.NewWorker(id, jobChan, resultChan, client, cfg)
+	}
+
+	var allResults []report.Result
+	hosts := make([]string, 0, len(specs))
+	methods := make(map[string]bool)
+	rpsValues := make(map[int]bool)
+
+	for _, spec := range specs {
+		select {
+		case <-ctx.Done():
+			c.Logger.Debug("Shutdown signal received. Cleaning up.")
+			return nil
+		default:
+		}
+
+		reqConfig := c
+		reqConfig.URL = spec.URL
+		reqConfig.Method = spec.Method
+		reqConfig.Body = spec.Body
+		reqConfig.RPS = spec.RPS
+		reqConfig.Requests = spec.Requests
+		if spec.Headers != nil {
+			reqConfig.Headers = ""
+			reqConfig.ParsedHeaders = util.HeaderMapToParsedHeaders(spec.Headers)
+		}
+
+		if err := reqConfig.Validate(); err != nil {
+			return fmt.Errorf("invalid configuration for request %q: %w", spec.Name, err)
+		}
+
+		c.Logger.Debug("Running request %q: %s %s (rps=%d, requests=%d)", spec.Name, reqConfig.Method, reqConfig.URL, reqConfig.RPS, reqConfig.Requests)
+
+		var r *report.Report
+		var err error
+		if distributed {
+			r, err = submitDistributedRequest(ctx, reqConfig)
+		} else {
+			r, err = runLocalRequest(ctx, reqConfig, factory)
+		}
+		if err != nil {
+			return err
+		}
+		if r == nil {
+			c.Logger.Debug("Shutdown signal received. Cleaning up.")
+			return nil
+		}
+
+		allResults = append(allResults, r.Results...)
+		hosts = append(hosts, reqConfig.URL)
+		methods[reqConfig.Method] = true
+		rpsValues[reqConfig.RPS] = true
+	}
+
+	combined := report.Aggregate(allResults)
+	combined.Host = strings.Join(hosts, ", ")
+	if len(methods) == 1 {
+		for m := range methods {
+			combined.Method = m
+		}
+	} else {
+		combined.Method = "MULTI"
+	}
+	if len(rpsValues) == 1 {
+		for rps := range rpsValues {
+			combined.TargetRPS = rps
+		}
+	}
+
+	return generateReport(c, combined)
+}
+
+// runLocalRequest runs a single request configuration against the local
+// worker pool and returns its report. A nil report and nil error means the
+// context was cancelled before the run completed.
+func runLocalRequest(ctx context.Context, c config.Config, factory worker.WorkerFactory) (*report.Report, error) {
+	jobs := make([]worker.Job, c.Requests)
+	for i := 0; i < c.Requests; i++ {
+		jobs[i] = worker.Job{ID: i, Host: c.URL, Method: c.Method, Body: c.Body}
+	}
+
+	reportChan := make(chan report.Report, 1)
+	go worker.Work(ctx, c, jobs, reportChan, factory, nil)
+
+	select {
+	case <-ctx.Done():
+		return nil, nil
+	case r := <-reportChan:
+		return &r, nil
+	}
+}
+
+// submitDistributedRequest submits a single request configuration to the
+// coordinator and polls until it completes, returning the resulting report.
+// A nil report and nil error means the context was cancelled before the run
+// completed.
+func submitDistributedRequest(ctx context.Context, c config.Config) (*report.Report, error) {
 	tc := api.TestConfig{
 		URL:              c.URL,
 		Method:           c.Method,
@@ -173,26 +329,26 @@ func runDistributed(ctx context.Context, c config.Config) error {
 
 	body, err := json.Marshal(tc)
 	if err != nil {
-		return fmt.Errorf("failed to marshal test config: %w", err)
+		return nil, fmt.Errorf("failed to marshal test config: %w", err)
 	}
 
 	c.Logger.Info("Submitting distributed test to coordinator at %s", coordinatorAddr)
 
 	resp, err := http.Post("http://"+coordinatorAddr+"/api/v1/tests", "application/json", bytes.NewReader(body))
 	if err != nil {
-		return fmt.Errorf("could not reach coordinator: %w", err)
+		return nil, fmt.Errorf("could not reach coordinator: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		var errResp api.ErrorResponse
 		json.NewDecoder(resp.Body).Decode(&errResp)
-		return fmt.Errorf("coordinator rejected test: %s", errResp.Error)
+		return nil, fmt.Errorf("coordinator rejected test: %s", errResp.Error)
 	}
 
 	var submission api.TestSubmissionResponse
 	if err := json.NewDecoder(resp.Body).Decode(&submission); err != nil {
-		return fmt.Errorf("invalid response from coordinator: %w", err)
+		return nil, fmt.Errorf("invalid response from coordinator: %w", err)
 	}
 
 	c.Logger.Info("Test submitted (id: %s). Waiting for agents to complete...", submission.TestID)
@@ -202,7 +358,7 @@ func runDistributed(ctx context.Context, c config.Config) error {
 	for {
 		select {
 		case <-ctx.Done():
-			return nil
+			return nil, nil
 		case <-time.After(pollInterval):
 		}
 
@@ -216,12 +372,12 @@ func runDistributed(ctx context.Context, c config.Config) error {
 		case "complete":
 			c.Logger.Info("Distributed test complete (%d agents)", status.AgentCount)
 			if status.Report != nil {
-				return generateReport(c, *status.Report)
+				return status.Report, nil
 			}
-			return fmt.Errorf("test completed but no report available")
+			return nil, fmt.Errorf("test completed but no report available")
 
 		case "error":
-			return fmt.Errorf("test failed: %s", status.Error)
+			return nil, fmt.Errorf("test failed: %s", status.Error)
 
 		default:
 			c.Logger.Info("Waiting... %d/%d agents reported",
@@ -247,84 +403,6 @@ func pollTestStatus(testID string) (*api.TestStatusResponse, error) {
 		return nil, err
 	}
 	return &status, nil
-}
-
-// runFromDefFile validates and parses a test definition file, then runs each
-// named request in dependency order (honoring depends_on), aggregating all
-// results into a single combined report.
-func runFromDefFile(ctx context.Context, c config.Config) error {
-	c.Logger.Debug("Validating definition file")
-	if err := config.ValidateDefFile(c.TestFile); err != nil {
-		return fmt.Errorf("invalid definition file: %w", err)
-	}
-
-	def, err := config.ParseDefFile(c.TestFile)
-	if err != nil {
-		return fmt.Errorf("error while parsing def file: %w", err)
-	}
-	c.Logger.Debug("Parsed %d request(s) from definition file %s", len(def.Requests), c.TestFile)
-
-	factory := func(id int, jobChan <-chan worker.Job, resultChan chan<- report.Result, client *http.Client, cfg config.Config) worker.Worker {
-		return *worker.NewWorker(id, jobChan, resultChan, client, cfg)
-	}
-
-	var allResults []report.Result
-	hosts := make([]string, 0, len(def.Requests))
-	methods := make(map[string]bool)
-
-	for _, reqDef := range def.Requests {
-		select {
-		case <-ctx.Done():
-			c.Logger.Debug("Shutdown signal received. Cleaning up.")
-			return nil
-		default:
-		}
-
-		reqConfig := c
-		reqConfig.URL = reqDef.URL
-		reqConfig.Method = reqDef.Method
-		reqConfig.Body = reqDef.Body
-		reqConfig.RPS = reqDef.RPS
-		reqConfig.Requests = reqDef.Requests
-		reqConfig.Headers = ""
-		reqConfig.ParsedHeaders = util.HeaderMapToParsedHeaders(reqDef.Headers)
-
-		if err := reqConfig.Validate(); err != nil {
-			return fmt.Errorf("invalid configuration for request %q: %w", reqDef.Name, err)
-		}
-
-		c.Logger.Debug("Running request %q: %s %s (rps=%d, requests=%d)", reqDef.Name, reqConfig.Method, reqConfig.URL, reqConfig.RPS, reqConfig.Requests)
-
-		jobs := make([]worker.Job, reqConfig.Requests)
-		for i := 0; i < reqConfig.Requests; i++ {
-			jobs[i] = worker.Job{ID: i, Host: reqConfig.URL, Method: reqConfig.Method, Body: reqConfig.Body}
-		}
-
-		reportChan := make(chan report.Report, 1)
-		go worker.Work(ctx, reqConfig, jobs, reportChan, factory, nil)
-
-		select {
-		case <-ctx.Done():
-			c.Logger.Debug("Shutdown signal received. Cleaning up.")
-			return nil
-		case r := <-reportChan:
-			allResults = append(allResults, r.Results...)
-			hosts = append(hosts, reqConfig.URL)
-			methods[reqConfig.Method] = true
-		}
-	}
-
-	combined := report.Aggregate(allResults)
-	combined.Host = strings.Join(hosts, ", ")
-	if len(methods) == 1 {
-		for m := range methods {
-			combined.Method = m
-		}
-	} else {
-		combined.Method = "MULTI"
-	}
-
-	return generateReport(c, combined)
 }
 
 func generateReport(c config.Config, r report.Report) error {

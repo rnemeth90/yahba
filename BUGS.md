@@ -108,6 +108,7 @@ FIXED
 **File:** `internal/logger/logger_test.go:98`
 The test creates `yahba.log` in the current working directory and may not clean it up if the test fails early. Should use `t.TempDir()` so cleanup is guaranteed.
 
+FIXED
 ---
 
 ### 10. Unresolved TODO comments
@@ -125,7 +126,7 @@ FIXED
 **File:** `cmd/run.go`
 There is no maximum validation on the `--rps` value. At 1,000,000 RPS the ticker interval drops to 1µs, which is unrealistic and will silently produce inaccurate results. A reasonable cap or warning should be added.
 
-
+FIXED
 ## Low Priority
 **File:** `cmd/run.go`
 When tests are passed in via a definition file, and the `--distributed` flag is passed, the tests are not ran in distributed mode. 
