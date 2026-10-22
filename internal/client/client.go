@@ -48,7 +48,7 @@ func NewClient(cfg config.Config) (*http.Client, error) {
 	} else {
 		tr := &http.Transport{
 			MaxIdleConns:        1000,
-			MaxIdleConnsPerHost: 500,
+			MaxIdleConnsPerHost: 1000,
 			IdleConnTimeout:     time.Duration(cfg.Timeout) * time.Second,
 			DisableKeepAlives:   !cfg.KeepAlive,
 			DisableCompression:  !cfg.Compression,

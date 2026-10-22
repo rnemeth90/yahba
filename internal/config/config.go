@@ -45,6 +45,37 @@ type Config struct {
 	Workers          int
 	RandomUserAgent  bool
 	TestFile         string
+
+	// Mode selects the load model: requests (fixed count at a fixed rate),
+	// max (closed loop for Duration) or ramp (stepped open loop).
+	Mode         string
+	Duration     time.Duration
+	RampStart    int
+	RampStep     int
+	RampMax      int
+	StepDuration time.Duration
+	MaxErrorRate float64
+	MaxP99       time.Duration
+}
+
+const (
+	ModeRequests = "requests"
+	ModeMax      = "max"
+	ModeRamp     = "ramp"
+
+	// MaxRPS is the highest rate the dispatcher can pace accurately.
+	MaxRPS = 100000
+)
+
+// EffectiveMode resolves the load model. An unset mode with a duration means max.
+func (config *Config) EffectiveMode() string {
+	if config.Mode != "" {
+		return config.Mode
+	}
+	if config.Duration > 0 {
+		return ModeMax
+	}
+	return ModeRequests
 }
 
 var validHTTPMethods = map[string]bool{
@@ -86,8 +117,22 @@ func (config *Config) Validate() error {
 		return ErrMissingBody
 	}
 
-	if config.Requests <= 0 {
-		return ErrInvalidRequests
+	mode := config.EffectiveMode()
+	switch mode {
+	case ModeRequests:
+		if config.Requests <= 0 {
+			return ErrInvalidRequests
+		}
+	case ModeMax:
+		if config.Duration <= 0 {
+			return ErrInvalidDuration
+		}
+	case ModeRamp:
+		if err := config.validateRamp(); err != nil {
+			return err
+		}
+	default:
+		return ErrInvalidMode
 	}
 
 	if config.Timeout <= 0 {
@@ -119,14 +164,35 @@ func (config *Config) Validate() error {
 		}
 	}
 
-	if config.RPS <= 0 {
-		return ErrInvalidRPS
+	if mode == ModeRequests {
+		if config.RPS <= 0 {
+			return ErrInvalidRPS
+		}
+		if config.RPS > MaxRPS {
+			return ErrRPSTooHigh
+		}
 	}
 
 	if config.HTTP2 && config.HTTP3 {
 		return ErrInvalidHTTPConfig
 	}
 
+	return nil
+}
+
+func (config *Config) validateRamp() error {
+	if config.RampStart <= 0 || config.RampStep <= 0 || config.StepDuration <= 0 {
+		return ErrInvalidRamp
+	}
+	if config.RampStart > MaxRPS || config.RampMax > MaxRPS {
+		return ErrRPSTooHigh
+	}
+	if config.RampMax != 0 && config.RampMax < config.RampStart {
+		return ErrInvalidRamp
+	}
+	if config.MaxErrorRate <= 0 || config.MaxErrorRate > 100 || config.MaxP99 < 0 {
+		return ErrInvalidRampThreshold
+	}
 	return nil
 }
 

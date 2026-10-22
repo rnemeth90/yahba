@@ -45,7 +45,14 @@ yahba run --url=http://example.com --requests=100 --rps=10
 | ----------------------------- | ---------- | ----------------------------------------------------------------------------------------------------------- |
 | `--url` or `-u`                | (required) | The target URL to stress test. Includes protocol (`http://` or `https://`).                                  |
 | `--requests` or `-r`           | `4`        | Total number of requests to send.                                                                            |
-| `--rps`                        | `1`        | Requests per second (RPS).                                                                                    |
+| `--rps`                        | `1`        | Requests per second (RPS), 1–100000. Requests mode only.                                                      |
+| `--mode`                       | (auto)     | `requests` (default), `max`, or `ramp`. See [Load Modes](#load-modes). `--duration` alone implies `max`.      |
+| `--duration`                   | `0`        | Max mode: how long to run, e.g. `30s`.                                                                        |
+| `--rps-start` / `--rps-step`   | `10` / `10`| Ramp mode: starting rate and increase per step.                                                               |
+| `--rps-max`                    | `0`        | Ramp mode: stop after this rate (0 = run until it breaks).                                                    |
+| `--step-duration`              | `10s`      | Ramp mode: length of each step.                                                                               |
+| `--max-error-rate`             | `5`        | Ramp mode: a step fails above this error percentage.                                                          |
+| `--max-p99`                    | `0`        | Ramp mode: a step fails above this p99 latency (0 = disabled).                                                |
 | `--method` or `-m`             | `GET`      | HTTP method to use (`GET`, `POST`, `PUT`, `HEAD`, `DELETE`).                                                  |
 | `--headers` or `-H`            | `""`       | Custom headers as `Key1:Value1,Key2:Value2`.                                                                  |
 | `--body` or `-b`               | `""`       | Request payload (e.g., JSON or form data). Required for `POST`/`PUT`.                                         |
@@ -68,6 +75,19 @@ yahba run --url=http://example.com --requests=100 --rps=10
 | `--out`                        | `stdout`   | Output destination: `stdout` or `file`.                                                                        |
 | `--filename`                   | `""`       | Output file name, used when `--out=file`.                                                                      |
 | `--file-name`                  | `""`       | Path to a test definition (def) file. When set, runs the requests defined in the file instead of `--url`. See [Test Definition Files](#test-definition-files). |
+
+### Load Modes
+
+| Mode       | Model       | What it answers                                         | Example |
+| ---------- | ----------- | ------------------------------------------------------- | ------- |
+| `requests` | open loop   | "Send N requests at R req/s" (default)                  | `yahba run -u URL -r 1000 --rps 100` |
+| `max`      | closed loop | "What is the most this server can handle?"              | `yahba run -u URL --duration 30s -w 200 -k` |
+| `ramp`     | open loop   | "At what request rate does it tip over?"                | `yahba run -u URL --mode ramp --rps-start 100 --rps-step 100 --step-duration 10s --max-p99 500ms` |
+
+- **max**: every worker sends requests back-to-back for `--duration`, so throughput is limited only by the server (comparable to `siege -c`, `ab -c`, `wrk`). Use `--workers` as the concurrency level and `-k` for keep-alive.
+- **requests** and **ramp** are open loop: requests are sent on a fixed schedule regardless of how slowly the server responds, and latency is measured from the scheduled send time, so queueing is included rather than hidden. The report shows configured vs. achieved RPS and warns when workers could not keep up; raise `--workers` if so.
+- **ramp** raises the rate each step until a step exceeds `--max-error-rate`, exceeds `--max-p99`, or achieves under 90% of its target rate. It reports the last passing rate (sustained) and the first failing rate (breaking).
+- Throughput is bytes divided by wall-clock test time.
 
 ### Examples
 

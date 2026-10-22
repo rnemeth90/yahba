@@ -23,6 +23,9 @@ type Report struct {
 	StartTime      string         `json:"start_time"`
 	EndTime        string         `json:"end_time"`
 	Duration       time.Duration  `json:"duration"`
+	Mode           string         `json:"mode,omitempty"`
+	ConfiguredRPS  int            `json:"configured_rps,omitempty"`
+	AchievedRPS    float64        `json:"achieved_rps"`
 }
 
 type Result struct {
@@ -92,6 +95,45 @@ func (r *Report) CalculateLatencyMetrics() {
 	}
 }
 
+// Finalize derives wall-clock based metrics (duration, achieved RPS and
+// throughput) from r.Results. Throughput is bytes over wall time, not the sum
+// of per-request durations, which over-reports when requests overlap.
+func (r *Report) Finalize() {
+	if len(r.Results) > 0 {
+		earliest := r.Results[0].StartTime
+		latest := r.Results[0].EndTime
+		for _, res := range r.Results[1:] {
+			if res.StartTime.Before(earliest) {
+				earliest = res.StartTime
+			}
+			if res.EndTime.After(latest) {
+				latest = res.EndTime
+			}
+		}
+		r.StartTime = earliest.Format(time.RFC3339)
+		r.EndTime = latest.Format(time.RFC3339)
+		r.Duration = latest.Sub(earliest)
+	}
+
+	secs := r.Duration.Seconds()
+	r.AchievedRPS = util.CalculateBytesPerSecond(float64(r.TotalRequests), secs)
+	r.Throughput.BytesSentPerSecond = util.CalculateBytesPerSecond(float64(r.Throughput.TotalBytesSent), secs)
+	r.Throughput.BytesReceivedPerSecond = util.CalculateBytesPerSecond(float64(r.Throughput.TotalBytesReceived), secs)
+}
+
+// LatencyPercentile returns the nearest-rank percentile of the results' elapsed times.
+func LatencyPercentile(results []Result, percentile float64) time.Duration {
+	if len(results) == 0 {
+		return 0
+	}
+	l := make([]time.Duration, len(results))
+	for i, r := range results {
+		l[i] = r.ElapsedTime
+	}
+	sort.Slice(l, func(i, j int) bool { return l[i] < l[j] })
+	return l[percentileIndex(len(l), percentile)]
+}
+
 // percentileIndex returns the index for a given percentile using the nearest-rank method.
 func percentileIndex(n int, percentile float64) int {
 	idx := int(math.Ceil(percentile/100*float64(n))) - 1
@@ -139,26 +181,9 @@ func Aggregate(results []Result) Report {
 		}
 	}
 
-	if len(r.Results) > 0 {
-		earliest := r.Results[0].StartTime
-		latest := r.Results[0].EndTime
-		for _, res := range r.Results[1:] {
-			if res.StartTime.Before(earliest) {
-				earliest = res.StartTime
-			}
-			if res.EndTime.After(latest) {
-				latest = res.EndTime
-			}
-		}
-		r.StartTime = earliest.Format(time.RFC3339)
-		r.EndTime = latest.Format(time.RFC3339)
-		r.Duration = latest.Sub(earliest)
-	}
-
 	r.Throughput.TotalBytesSent = totalBytesSent
 	r.Throughput.TotalBytesReceived = totalBytesReceived
-	r.Throughput.BytesSentPerSecond = util.CalculateBytesPerSecond(float64(totalBytesSent), r.Duration.Seconds())
-	r.Throughput.BytesReceivedPerSecond = util.CalculateBytesPerSecond(float64(totalBytesReceived), r.Duration.Seconds())
+	r.Finalize()
 
 	r.CalculateLatencyMetrics()
 

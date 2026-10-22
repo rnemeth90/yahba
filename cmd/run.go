@@ -29,6 +29,7 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/rnemeth90/yahba/internal/config"
 	"github.com/rnemeth90/yahba/internal/logger"
@@ -91,6 +92,14 @@ func init() {
 	runCmd.PersistentFlags().IntVarP(&c.Workers, "workers", "w", 10, "Number of concurrent workers. Default: 10")
 	runCmd.PersistentFlags().BoolVar(&c.RandomUserAgent, "random-user-agent", false, "Randomize the User-Agent header per request")
 	runCmd.PersistentFlags().StringVar(&c.TestFile, "file-name", "", "Name of test definition file")
+	runCmd.PersistentFlags().StringVar(&c.Mode, "mode", "", "Load model: requests (default), max (closed loop for --duration), ramp (stepped rate until it breaks)")
+	runCmd.PersistentFlags().DurationVar(&c.Duration, "duration", 0, "Test length for max mode, e.g. 30s. Setting it implies --mode=max")
+	runCmd.PersistentFlags().IntVar(&c.RampStart, "rps-start", 10, "Ramp mode: starting requests per second")
+	runCmd.PersistentFlags().IntVar(&c.RampStep, "rps-step", 10, "Ramp mode: requests per second added each step")
+	runCmd.PersistentFlags().IntVar(&c.RampMax, "rps-max", 0, "Ramp mode: stop after this rate (0 = until it breaks)")
+	runCmd.PersistentFlags().DurationVar(&c.StepDuration, "step-duration", 10*time.Second, "Ramp mode: how long each step lasts")
+	runCmd.PersistentFlags().Float64Var(&c.MaxErrorRate, "max-error-rate", 5, "Ramp mode: a step fails above this error percentage")
+	runCmd.PersistentFlags().DurationVar(&c.MaxP99, "max-p99", 0, "Ramp mode: a step fails above this p99 latency (0 = disabled)")
 }
 
 func run(ctx context.Context, c config.Config) error {
@@ -114,6 +123,13 @@ func run(ctx context.Context, c config.Config) error {
 		c.ParsedHeaders = parsedHeaders
 	}
 
+	switch c.EffectiveMode() {
+	case config.ModeMax:
+		return runMax(ctx, c)
+	case config.ModeRamp:
+		return runRamp(ctx, c)
+	}
+
 	// todo: do we need to create individual jobs if the jobs are all the same?
 	c.Logger.Debug("Creating %d jobs for requests to %s", c.Requests, c.URL)
 	jobs := make([]worker.Job, c.Requests)
@@ -135,6 +151,46 @@ func run(ctx context.Context, c config.Config) error {
 	case r := <-reportChan:
 		return generateReport(c, r)
 	}
+}
+
+func workerFactory(id int, jobChan <-chan worker.Job, resultChan chan<- report.Result, client *http.Client, cfg config.Config) worker.Worker {
+	return *worker.NewWorker(id, jobChan, resultChan, client, cfg)
+}
+
+func runMax(ctx context.Context, c config.Config) error {
+	c.Logger.Debug("Closed-loop max mode: %d workers for %s", c.Workers, c.Duration)
+	reportChan := make(chan report.Report, 1)
+	go worker.RunMax(ctx, c, reportChan, workerFactory, nil)
+
+	select {
+	case <-ctx.Done():
+		c.Logger.Debug("Shutdown signal received. Cleaning up.")
+		return nil
+	case r := <-reportChan:
+		return generateReport(c, r)
+	}
+}
+
+func runRamp(ctx context.Context, c config.Config) error {
+	rr, err := worker.RunRamp(ctx, c, workerFactory)
+	if err != nil {
+		return err
+	}
+
+	var out string
+	switch c.OutputFormat {
+	case "json":
+		out, err = report.ParseRampJSON(rr)
+	case "yaml":
+		out, err = report.ParseRampYAML(rr)
+	default:
+		out = report.ParseRampRaw(rr)
+	}
+	if err != nil {
+		return fmt.Errorf("error generating report: %w", err)
+	}
+	fmt.Fprintln(c.Logger.Writer(), out)
+	return nil
 }
 
 // runFromDefFile validates and parses a test definition file, then runs each

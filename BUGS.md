@@ -35,6 +35,7 @@ Result and progress channels are buffered to the full job count. For large runs 
 
 ---
 
+FIXED
 ### 5. HTTP request recreated per job
 **File:** `internal/worker/worker.go:251-256`
 A new `*http.Request` is constructed for every job even when all requests are identical. The request should be built once as a template and cloned via `req.Clone(ctx)` for each job.
@@ -54,12 +55,14 @@ if r.ResultCode > 0 {
 
 ## Medium Priority
 
+FIXED
 ### 7. RPS ticker does not account for response latency
 **File:** `internal/worker/worker.go:141-150`
 `time.NewTicker(time.Second / time.Duration(cfg.RPS))` controls dispatch rate only. When responses are slow, actual RPS will be lower than configured with no warning to the user. Should use `golang.org/x/time/rate` (token bucket) and report achieved vs. configured RPS in output.
 
 ---
 
+FIXED
 ### 8. Throughput calculation uses sum of durations instead of wall time
 **File:** `internal/report/report.go`
 Total bytes divided by the sum of individual request durations over-reports throughput when requests run in parallel. The denominator should be `testEnd - testStart` (wall clock elapsed), not the sum of all per-request elapsed times.
@@ -82,6 +85,7 @@ The second question is answered by issue #5 above (no — clone a template inste
 
 ---
 
+FIXED
 ### 11. No upper bound on `--rps` flag
 **File:** `cmd/run.go`
 There is no maximum validation on the `--rps` value. At 1,000,000 RPS the ticker interval drops to 1µs, which is unrealistic and will silently produce inaccurate results. A reasonable cap or warning should be added.

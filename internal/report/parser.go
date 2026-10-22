@@ -31,7 +31,17 @@ func ParseRaw(report Report) (string, error) {
 	builder.WriteString(fmt.Sprintf("Failures:             %d (%.2f%%)\n\n", report.Failures, failureRate))
 	builder.WriteString(fmt.Sprintf("Test Start Time:      %s\n", report.StartTime))
 	builder.WriteString(fmt.Sprintf("Test End Time:        %s\n", report.EndTime))
-	builder.WriteString(fmt.Sprintf("Test Duration:        %s\n\n", report.Duration))
+	builder.WriteString(fmt.Sprintf("Test Duration:        %s\n", report.Duration))
+	if report.Mode != "" {
+		builder.WriteString(fmt.Sprintf("Mode:                 %s\n", report.Mode))
+	}
+	if report.ConfiguredRPS > 0 {
+		builder.WriteString(fmt.Sprintf("Configured RPS:       %d\n", report.ConfiguredRPS))
+	}
+	builder.WriteString(fmt.Sprintf("Achieved RPS:         %.2f\n\n", report.AchievedRPS))
+	if report.ConfiguredRPS > 0 && report.AchievedRPS < float64(report.ConfiguredRPS)*0.95 {
+		builder.WriteString("WARNING: achieved RPS is below the configured RPS; increase --workers or the server is saturated\n\n")
+	}
 
 	builder.WriteString("Latency Metrics:\n")
 	builder.WriteString(fmt.Sprintf("  Min: %s\n", report.Latency.Min))
