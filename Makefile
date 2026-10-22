@@ -13,13 +13,16 @@ TARGETS = \
 	windows-386 \
 	windows-amd64
 
-.PHONY: build test format clean release tag help check-version
+.PHONY: build test bench format clean release tag help check-version
 
 build: ## Build for the current platform
 	go build -o $(BINARY_NAME) .
 
 test: ## Run all tests
 	go test ./...
+
+bench: ## Compare yahba against wrk, ab and siege (see bench/compare.sh)
+	bench/compare.sh
 
 format: ## Format all Go source files
 	gofmt -w -s .
