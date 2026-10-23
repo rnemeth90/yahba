@@ -8,7 +8,20 @@ import (
 	"time"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/rnemeth90/yahba/internal/config"
 )
+
+// achievedRPSText renders achieved RPS, against the target when there is one.
+func achievedRPSText(achieved float64, configured int) string {
+	if configured == 0 {
+		return fmt.Sprintf("%.1f", achieved)
+	}
+	text := fmt.Sprintf("%.1f of %d configured", achieved, configured)
+	if achieved < float64(configured)*0.95 {
+		text += "  (below target: raise workers or server saturated)"
+	}
+	return text
+}
 
 // View renders the current screen, centered in the terminal.
 func (m model) View() string {
@@ -17,9 +30,17 @@ func (m model) View() string {
 	case stateForm:
 		content = m.viewForm()
 	case stateRunning:
-		content = m.viewRunning()
+		if m.mode == config.ModeRamp {
+			content = m.viewRampRunning()
+		} else {
+			content = m.viewRunning()
+		}
 	case stateReport:
-		content = m.viewReport()
+		if m.rampReport != nil {
+			content = m.viewRampReport()
+		} else {
+			content = m.viewReport()
+		}
 	}
 
 	if m.width == 0 || m.height == 0 {
@@ -43,6 +64,9 @@ func (m model) viewForm() string {
 	b.WriteString("\n\n")
 
 	for i := 0; i < inputCount; i++ {
+		if !m.visible(i) {
+			continue
+		}
 		label := inputLabels[i]
 		var labelStr string
 		if i == m.focusIdx {
@@ -60,7 +84,7 @@ func (m model) viewForm() string {
 		b.WriteString("\n")
 	}
 
-	help := helpStyle.Render("enter start  |  tab/shift+tab navigate  |  esc quit")
+	help := helpStyle.Render("enter start  |  tab/shift+tab navigate  |  left/right change mode  |  esc quit")
 	b.WriteString("\n")
 	b.WriteString(help)
 
@@ -82,14 +106,23 @@ func (m model) viewRunning() string {
 	b.WriteString("    ")
 	b.WriteString(targetStyle.Render("Method: "))
 	b.WriteString(targetValueStyle.Render(m.cfg.Method))
+	b.WriteString("    ")
+	b.WriteString(targetStyle.Render("Mode: "))
+	b.WriteString(targetValueStyle.Render(m.mode))
 	b.WriteString("\n\n")
 
 	// Progress bar
-	pct := float64(m.completed) / float64(m.totalRequests)
-	progressStr := fmt.Sprintf("  %s %d/%d (%.0f%%)",
-		m.progress.View(),
-		m.completed, m.totalRequests,
-		pct*100,
+	var progressLabel string
+	switch m.mode {
+	case config.ModeMax:
+		progressLabel = fmt.Sprintf("%s / %s", formatElapsed(min(m.elapsed, m.cfg.Duration)), m.cfg.Duration)
+	default:
+		progressLabel = fmt.Sprintf("%d/%d", m.completed, m.totalRequests)
+	}
+	progressStr := fmt.Sprintf("  %s %s (%.0f%%)",
+		m.progress.ViewAs(m.progressFraction()),
+		progressLabel,
+		m.progressFraction()*100,
 	)
 	b.WriteString(progressStr)
 	b.WriteString("\n\n")
@@ -120,18 +153,19 @@ func (m model) viewRunning() string {
 }
 
 func (m model) renderSummaryPanel() string {
-	var avgLatency time.Duration
-	if m.completed > 0 {
-		avgLatency = m.totalLatency / time.Duration(m.completed)
+	var rate float64
+	if m.elapsed > 0 {
+		rate = float64(m.completed) / m.elapsed.Seconds()
 	}
-	_ = avgLatency
 
 	content := fmt.Sprintf(
-		"%s %s\n%s %s\n%s %s\n%s %s\n%s %s",
+		"%s %s\n%s %s\n%s %s\n%s %s\n%s %s\n%s %s",
 		statLabelStyle.Render("Elapsed:"),
 		statValueStyle.Render(formatElapsed(m.elapsed)),
 		statLabelStyle.Render("Completed:"),
 		statValueStyle.Render(fmt.Sprintf("%d", m.completed)),
+		statLabelStyle.Render("Rate:"),
+		statValueStyle.Render(fmt.Sprintf("%.0f req/s", rate)),
 		statLabelStyle.Render("Successes:"),
 		statSuccessStyle.Render(fmt.Sprintf("%d", m.successes)),
 		statLabelStyle.Render("Failures:"),
@@ -233,6 +267,8 @@ func (m model) viewReport() string {
 		{"Start Time", r.StartTime},
 		{"End Time", r.EndTime},
 		{"Duration", r.Duration.String()},
+		{"Mode", r.Mode},
+		{"Achieved RPS", achievedRPSText(r.AchievedRPS, r.ConfiguredRPS)},
 	}
 
 	for _, h := range headerLines {

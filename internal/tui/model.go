@@ -2,9 +2,6 @@ package tui
 
 import (
 	"context"
-	"fmt"
-	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/charmbracelet/bubbles/progress"
@@ -13,10 +10,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/rnemeth90/yahba/internal/config"
-	"github.com/rnemeth90/yahba/internal/logger"
 	"github.com/rnemeth90/yahba/internal/report"
-	"github.com/rnemeth90/yahba/internal/util"
-	"github.com/rnemeth90/yahba/internal/worker"
 )
 
 // appState represents which screen the TUI is showing.
@@ -28,12 +22,20 @@ const (
 	stateReport                  // final report
 )
 
-// Form input indices
+// Form input indices, in display order
 const (
 	inputURL = iota
 	inputMethod
+	inputMode
 	inputRequests
 	inputRPS
+	inputDuration
+	inputRampStart
+	inputRampStep
+	inputRampMax
+	inputStepDuration
+	inputMaxErrorRate
+	inputMaxP99
 	inputKeepAlives
 	inputWorkers
 	inputTimeout
@@ -46,8 +48,16 @@ const (
 var inputLabels = [inputCount]string{
 	"URL",
 	"Method",
+	"Mode",
 	"Requests",
 	"RPS",
+	"Duration",
+	"RPS Start",
+	"RPS Step",
+	"RPS Max (0=none)",
+	"Step Duration",
+	"Max Error Rate %",
+	"Max P99 (0=off)",
 	"Keep-Alives",
 	"Workers",
 	"Timeout (s)",
@@ -55,16 +65,18 @@ var inputLabels = [inputCount]string{
 	"Body",
 }
 
-// --- Messages ---
+var modes = []string{config.ModeRequests, config.ModeMax, config.ModeRamp}
 
-// resultMsg is sent when a single request result arrives from the worker pool.
-type resultMsg report.Result
+// --- Messages ---
 
 // reportMsg is sent when the final aggregated report is ready.
 type reportMsg report.Report
 
-// resultsCompleteMsg signals that all results have been received.
-type resultsCompleteMsg struct{}
+// rampDoneMsg is sent when a ramp test finishes.
+type rampDoneMsg struct {
+	report report.RampReport
+	err    error
+}
 
 // tickMsg drives the elapsed-time display during a running test.
 type tickMsg time.Time
@@ -76,15 +88,9 @@ func (e errMsg) Error() string { return e.err.Error() }
 
 // --- Commands ---
 
-// waitForResult listens on the progress channel for the next individual result.
-func waitForResult(ch <-chan report.Result) tea.Cmd {
-	return func() tea.Msg {
-		r, ok := <-ch
-		if !ok {
-			return resultsCompleteMsg{}
-		}
-		return resultMsg(r)
-	}
+// waitForRamp listens for the finished ramp report.
+func waitForRamp(ch <-chan rampDoneMsg) tea.Cmd {
+	return func() tea.Msg { return <-ch }
 }
 
 // waitForReport listens on the report channel for the final aggregated report.
@@ -116,8 +122,9 @@ type model struct {
 	focusIdx int
 	formErr  string
 
-	// Running: live stats
+	// Running: live stats, sampled from stats on each tick
 	cfg           config.Config
+	mode          string
 	totalRequests int
 	completed     int
 	successes     int
@@ -128,17 +135,24 @@ type model struct {
 	minLatency    time.Duration
 	maxLatency    time.Duration
 	totalLatency  time.Duration
-	latencies     []time.Duration // per-request latencies for the graph
+	latencies     []time.Duration // most recent per-request latencies for the graph
 	bytesSent     int
 	bytesReceived int
 
-	// Channels & cancellation
-	progressChan <-chan report.Result
-	reportChan   <-chan report.Report
-	cancelFunc   context.CancelFunc
+	stats     *liveStats
+	drained   chan struct{}
+	ramp      *rampLive
+	rampSteps []report.Step
+	stepStart time.Time
 
-	// Final report
-	report *report.Report
+	// Channels & cancellation
+	reportChan <-chan report.Report
+	rampChan   <-chan rampDoneMsg
+	cancelFunc context.CancelFunc
+
+	// Final report (one of the two is set)
+	report     *report.Report
+	rampReport *report.RampReport
 
 	// UI components
 	progress progress.Model
@@ -162,6 +176,24 @@ func New() model {
 	inputs[inputMethod].Placeholder = "GET"
 	inputs[inputMethod].SetValue("GET")
 	inputs[inputMethod].CharLimit = 10
+
+	inputs[inputMode].Placeholder = "requests | max | ramp"
+	inputs[inputMode].SetValue(config.ModeRequests)
+	inputs[inputMode].CharLimit = 10
+
+	inputs[inputDuration].Placeholder = "30s"
+	inputs[inputDuration].SetValue("30s")
+	inputs[inputDuration].CharLimit = 10
+
+	inputs[inputRampStart].SetValue("100")
+	inputs[inputRampStep].SetValue("100")
+	inputs[inputRampMax].SetValue("0")
+	inputs[inputStepDuration].SetValue("10s")
+	inputs[inputMaxErrorRate].SetValue("5")
+	inputs[inputMaxP99].SetValue("0")
+	for _, i := range []int{inputRampStart, inputRampStep, inputRampMax, inputStepDuration, inputMaxErrorRate, inputMaxP99} {
+		inputs[i].CharLimit = 10
+	}
 
 	inputs[inputRequests].Placeholder = "100"
 	inputs[inputRequests].SetValue("100")
@@ -207,146 +239,4 @@ func New() model {
 // Init is the first Bubble Tea lifecycle method.
 func (m model) Init() tea.Cmd {
 	return tea.Batch(textinput.Blink, tea.WindowSize())
-}
-
-// buildConfig parses the form inputs into a config.Config and validates it.
-func (m *model) buildConfig() (config.Config, error) {
-	url := m.inputs[inputURL].Value()
-	method := m.inputs[inputMethod].Value()
-	if method == "" {
-		method = "GET"
-	}
-
-	requests, err := strconv.Atoi(m.inputs[inputRequests].Value())
-	if err != nil || requests <= 0 {
-		return config.Config{}, fmt.Errorf("requests must be a positive integer")
-	}
-
-	rps, err := strconv.Atoi(m.inputs[inputRPS].Value())
-	if err != nil || rps <= 0 {
-		return config.Config{}, fmt.Errorf("RPS must be a positive integer")
-	}
-
-	keepAlives, err := strconv.ParseBool(m.inputs[inputKeepAlives].Value())
-	if err != nil {
-		return config.Config{}, fmt.Errorf("keep-alives must be true or false")
-	}
-
-	workers, err := strconv.Atoi(m.inputs[inputWorkers].Value())
-	if err != nil || workers <= 0 {
-		return config.Config{}, fmt.Errorf("workers must be a positive integer")
-	}
-
-	timeout, err := strconv.Atoi(m.inputs[inputTimeout].Value())
-	if err != nil || timeout <= 0 {
-		return config.Config{}, fmt.Errorf("timeout must be a positive integer")
-	}
-
-	cfg := config.Config{
-		URL:          url,
-		Method:       method,
-		Requests:     requests,
-		RPS:          rps,
-		KeepAlive:    keepAlives,
-		Workers:      workers,
-		Timeout:      timeout,
-		Headers:      m.inputs[inputHeaders].Value(),
-		Body:         m.inputs[inputBody].Value(),
-		LogLevel:     "error",
-		OutputFormat: "raw",
-		OutputFile:   "stdout",
-		Silent:       true,
-		Logger:       logger.New("error", "stdout", true),
-	}
-
-	if cfg.Headers != "" {
-		parsedHeaders, err := util.ParseHeaders(cfg.Headers)
-		if err != nil {
-			return config.Config{}, fmt.Errorf("invalid headers: %w", err)
-		}
-		cfg.ParsedHeaders = parsedHeaders
-	}
-
-	if err := cfg.Validate(); err != nil {
-		return config.Config{}, err
-	}
-
-	return cfg, nil
-}
-
-// startTest kicks off the load test and returns initial commands.
-func (m *model) startTest() tea.Cmd {
-	cfg, err := m.buildConfig()
-	if err != nil {
-		m.formErr = err.Error()
-		return nil
-	}
-
-	m.cfg = cfg
-	m.totalRequests = cfg.Requests
-	m.completed = 0
-	m.successes = 0
-	m.failures = 0
-	m.statusCodes = make(map[int]int)
-	m.startTime = time.Now()
-	m.elapsed = 0
-	m.minLatency = 0
-	m.maxLatency = 0
-	m.totalLatency = 0
-	m.bytesSent = 0
-	m.bytesReceived = 0
-	m.latencies = nil
-	m.report = nil
-	m.formErr = ""
-
-	// Build jobs
-	jobs := make([]worker.Job, cfg.Requests)
-	for i := 0; i < cfg.Requests; i++ {
-		jobs[i] = worker.Job{ID: i, Host: cfg.URL, Method: cfg.Method, Body: cfg.Body}
-	}
-
-	factory := func(id int, jobChan <-chan worker.Job, resultChan chan<- report.Result, client *http.Client, c config.Config) worker.Worker {
-		return *worker.NewWorker(id, jobChan, resultChan, client, c)
-	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-	m.cancelFunc = cancel
-
-	progressChan := make(chan report.Result, cfg.Requests)
-	reportChan := make(chan report.Report, 1)
-	m.progressChan = progressChan
-	m.reportChan = reportChan
-
-	go worker.Work(ctx, cfg, jobs, reportChan, factory, progressChan)
-
-	m.state = stateRunning
-
-	return tea.Batch(
-		waitForResult(progressChan),
-		waitForReport(reportChan),
-		tick(),
-		m.spinner.Tick,
-	)
-}
-
-// resetToForm resets the model to the form state, preserving input values.
-func (m *model) resetToForm() {
-	m.state = stateForm
-	m.formErr = ""
-	m.report = nil
-	m.completed = 0
-	m.successes = 0
-	m.failures = 0
-	m.statusCodes = nil
-	m.latencies = nil
-	m.progressChan = nil
-	m.reportChan = nil
-	m.cancelFunc = nil
-
-	// Re-focus first input
-	for i := range m.inputs {
-		m.inputs[i].Blur()
-	}
-	m.focusIdx = 0
-	m.inputs[0].Focus()
 }

@@ -22,22 +22,32 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.progress.Width = min(msg.Width-20, 80)
 		return m, nil
 
-	case resultMsg:
-		return m.handleResult(report.Result(msg))
-
-	case resultsCompleteMsg:
-		// All results received; report will arrive shortly.
-		return m, nil
-
 	case reportMsg:
 		r := report.Report(msg)
+		if m.drained != nil {
+			<-m.drained // the progress channel is closed just before the report is sent
+		}
+		m.sample()
 		m.report = &r
+		m.state = stateReport
+		return m, nil
+
+	case rampDoneMsg:
+		if msg.err != nil {
+			m.formErr = msg.err.Error()
+			m.state = stateForm
+			return m, nil
+		}
+		rr := msg.report
+		m.rampSteps = rr.Steps
+		m.rampReport = &rr
 		m.state = stateReport
 		return m, nil
 
 	case tickMsg:
 		if m.state == stateRunning {
 			m.elapsed = time.Since(m.startTime)
+			m.sample()
 			return m, tick()
 		}
 		return m, nil
@@ -89,12 +99,22 @@ func (m model) handleFormKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 
 	case "tab", "down":
-		m.focusIdx = (m.focusIdx + 1) % inputCount
-		return m.focusInput()
+		m.moveFocus(1)
+		return m, nil
 
 	case "shift+tab", "up":
-		m.focusIdx = (m.focusIdx - 1 + inputCount) % inputCount
-		return m.focusInput()
+		m.moveFocus(-1)
+		return m, nil
+
+	case "left", "right":
+		if m.focusIdx == inputMode {
+			dir := 1
+			if msg.String() == "left" {
+				dir = -1
+			}
+			m.cycleMode(dir)
+			return m, nil
+		}
 
 	case "enter":
 		cmd := m.startTest()
@@ -102,15 +122,6 @@ func (m model) handleFormKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 
 	return m.updateFormInputs(msg)
-}
-
-// focusInput blurs all inputs and focuses the one at focusIdx.
-func (m model) focusInput() (tea.Model, tea.Cmd) {
-	for i := range m.inputs {
-		m.inputs[i].Blur()
-	}
-	m.inputs[m.focusIdx].Focus()
-	return m, nil
 }
 
 // updateFormInputs forwards messages to the currently focused text input.
@@ -145,34 +156,4 @@ func (m model) handleReportKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	return m, nil
-}
-
-// --- Result handling ---
-
-func (m model) handleResult(r report.Result) (tea.Model, tea.Cmd) {
-	m.completed++
-
-	if r.ResultCode > 0 && r.ResultCode < 400 {
-		m.successes++
-	} else {
-		m.failures++
-	}
-
-	m.statusCodes[r.ResultCode]++
-	m.bytesSent += r.BytesSent
-	m.bytesReceived += r.BytesReceived
-	m.totalLatency += r.ElapsedTime
-	m.latencies = append(m.latencies, r.ElapsedTime)
-
-	if m.minLatency == 0 || r.ElapsedTime < m.minLatency {
-		m.minLatency = r.ElapsedTime
-	}
-	if r.ElapsedTime > m.maxLatency {
-		m.maxLatency = r.ElapsedTime
-	}
-
-	pct := float64(m.completed) / float64(m.totalRequests)
-	cmd := m.progress.SetPercent(pct)
-
-	return m, tea.Batch(cmd, waitForResult(m.progressChan))
 }

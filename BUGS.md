@@ -17,7 +17,9 @@ Impact: excessive memory usage and slow performance for large responses.
 
 ---
 
-### 2. Unbounded latency slice in TUI
+### 2. Unbounded latency slice in TUI — FIXED
+*Fixed: the TUI keeps a bounded ring of recent latencies (`internal/tui/stats.go`).*
+
 **File:** `internal/tui/update.go:165`
 Every request latency is appended to `m.latencies` forever. For long or high-volume tests this grows to hundreds of MB. Should use a fixed-size ring buffer or an online algorithm (e.g. Welford's) for O(1) space.
 
@@ -42,7 +44,9 @@ A new `*http.Request` is constructed for every job even when all requests are id
 
 ---
 
-### 6. TUI status code map panics on result code 0
+### 6. TUI status code map panics on result code 0 — FIXED
+*Fixed: code 0 is counted as a failure, not a status code.*
+
 **File:** `internal/tui/update.go:161`
 A network error produces `ResultCode == 0`. Writing `m.statusCodes[0]++` is valid Go but semantically wrong and causes incorrect status code reporting. The write should be guarded:
 ```go
