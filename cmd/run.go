@@ -61,7 +61,7 @@ var runCmd = &cobra.Command{
 		c.Logger.Debug("Starting YAHBA")
 		if err := run(ctx, c); err != nil {
 			c.Logger.Error("Application encountered a critical error: %v", err)
-			return
+			os.Exit(1)
 		}
 	},
 }
@@ -99,6 +99,7 @@ func init() {
 	runCmd.PersistentFlags().IntVar(&c.RampMax, "rps-max", 0, "Ramp mode: stop after this rate (0 = until it breaks)")
 	runCmd.PersistentFlags().DurationVar(&c.StepDuration, "step-duration", 10*time.Second, "Ramp mode: how long each step lasts")
 	runCmd.PersistentFlags().Float64Var(&c.MaxErrorRate, "max-error-rate", 5, "Ramp mode: a step fails above this error percentage")
+	runCmd.PersistentFlags().IntVar(&c.MinSustainedRPS, "min-sustained-rps", 0, "Ramp mode: exit with status 1 if the sustained rate is below this (0 = disabled)")
 	runCmd.PersistentFlags().DurationVar(&c.MaxP99, "max-p99", 0, "Ramp mode: a step fails above this p99 latency (0 = disabled)")
 }
 
@@ -172,7 +173,9 @@ func runMax(ctx context.Context, c config.Config) error {
 }
 
 func runRamp(ctx context.Context, c config.Config) error {
-	rr, err := worker.RunRamp(ctx, c, workerFactory)
+	// live progress goes to stderr so json/yaml on stdout stays parseable
+	live := func(s report.Step) { fmt.Fprintln(os.Stderr, report.FormatStepLine(s)) }
+	rr, err := worker.RunRamp(ctx, c, workerFactory, live)
 	if err != nil {
 		return err
 	}
@@ -190,6 +193,10 @@ func runRamp(ctx context.Context, c config.Config) error {
 		return fmt.Errorf("error generating report: %w", err)
 	}
 	fmt.Fprintln(c.Logger.Writer(), out)
+
+	if c.MinSustainedRPS > 0 && rr.SustainedRPS < c.MinSustainedRPS {
+		return fmt.Errorf("sustained %d RPS, below the required --min-sustained-rps of %d", rr.SustainedRPS, c.MinSustainedRPS)
+	}
 	return nil
 }
 

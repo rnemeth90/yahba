@@ -56,6 +56,10 @@ type Config struct {
 	StepDuration time.Duration
 	MaxErrorRate float64
 	MaxP99       time.Duration
+
+	// MinSustainedRPS makes a ramp run fail (non-zero exit) if the highest
+	// passing rate is below it. 0 disables the check.
+	MinSustainedRPS int
 }
 
 const (
@@ -190,7 +194,7 @@ func (config *Config) validateRamp() error {
 	if config.RampMax != 0 && config.RampMax < config.RampStart {
 		return ErrInvalidRamp
 	}
-	if config.MaxErrorRate <= 0 || config.MaxErrorRate > 100 || config.MaxP99 < 0 {
+	if config.MaxErrorRate <= 0 || config.MaxErrorRate > 100 || config.MaxP99 < 0 || config.MinSustainedRPS < 0 {
 		return ErrInvalidRampThreshold
 	}
 	return nil

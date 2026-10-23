@@ -50,7 +50,10 @@ func RunMax(ctx context.Context, cfg config.Config, reportChan chan<- report.Rep
 // cfg.StepDuration, then raises the rate by cfg.RampStep, and so on until a
 // step breaches a threshold (error rate, p99, or failing to reach the target
 // rate), cfg.RampMax is passed, or ctx ends.
-func RunRamp(ctx context.Context, cfg config.Config, factory WorkerFactory) (report.RampReport, error) {
+//
+// onStep, if non-nil, is called as each step finishes (for live output). The
+// knee is only known once the whole ramp ends, so it appears in the final report.
+func RunRamp(ctx context.Context, cfg config.Config, factory WorkerFactory, onStep func(report.Step)) (report.RampReport, error) {
 	rr := report.RampReport{
 		Host:         cfg.URL,
 		Method:       cfg.Method,
@@ -73,9 +76,11 @@ func RunRamp(ctx context.Context, cfg config.Config, factory WorkerFactory) (rep
 			return rr, nil
 		case cfg.RampMax > 0 && rps > cfg.RampMax:
 			rr.StopReason = fmt.Sprintf("reached --rps-max (%d) without breaking", cfg.RampMax)
+			rr.MarkKnee()
 			return rr, nil
 		case rps > config.MaxRPS:
 			rr.StopReason = fmt.Sprintf("reached the supported maximum of %d RPS without breaking", config.MaxRPS)
+			rr.MarkKnee()
 			return rr, nil
 		}
 
@@ -91,7 +96,11 @@ func RunRamp(ctx context.Context, cfg config.Config, factory WorkerFactory) (rep
 
 		step := evaluateStep(cfg, rps, rep)
 		rr.Steps = append(rr.Steps, step)
+		if onStep != nil {
+			onStep(step)
+		}
 		if !step.Passed {
+			rr.MarkKnee()
 			rr.BreakingRPS = rps
 			rr.StopReason = "step failed: " + step.Reason
 			return rr, nil
@@ -109,6 +118,10 @@ func evaluateStep(cfg config.Config, rps int, rep report.Report) report.Step {
 		P50:         rep.Latency.P50,
 		P95:         rep.Latency.P95,
 		P99:         rep.Latency.P99,
+		P99Duration: report.LatencyPercentile(rep.Results, 99),
+		P999:        report.LatencyPercentile(rep.Results, 99.9).String(),
+		Max:         report.LatencyPercentile(rep.Results, 100).String(),
+		Histogram:   report.LatencyHistogram(rep.Results),
 		Passed:      true,
 	}
 	if rep.TotalRequests > 0 {
@@ -121,7 +134,7 @@ func evaluateStep(cfg config.Config, rps int, rep report.Report) report.Step {
 	case step.ErrorRate > cfg.MaxErrorRate:
 		step.Passed = false
 		step.Reason = fmt.Sprintf("error rate %.2f%% > %.2f%%", step.ErrorRate, cfg.MaxErrorRate)
-	case cfg.MaxP99 > 0 && report.LatencyPercentile(rep.Results, 99) > cfg.MaxP99:
+	case cfg.MaxP99 > 0 && step.P99Duration > cfg.MaxP99:
 		step.Passed = false
 		step.Reason = fmt.Sprintf("p99 %s > %s", step.P99, cfg.MaxP99)
 	case step.AchievedRPS < float64(rps)*rampPassFraction:

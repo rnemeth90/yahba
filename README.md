@@ -53,6 +53,7 @@ yahba run --url=http://example.com --requests=100 --rps=10
 | `--step-duration`              | `10s`      | Ramp mode: length of each step.                                                                               |
 | `--max-error-rate`             | `5`        | Ramp mode: a step fails above this error percentage.                                                          |
 | `--max-p99`                    | `0`        | Ramp mode: a step fails above this p99 latency (0 = disabled).                                                |
+| `--min-sustained-rps`          | `0`        | Ramp mode: exit with status 1 if the sustained rate is below this (for CI gating).                            |
 | `--method` or `-m`             | `GET`      | HTTP method to use (`GET`, `POST`, `PUT`, `HEAD`, `DELETE`).                                                  |
 | `--headers` or `-H`            | `""`       | Custom headers as `Key1:Value1,Key2:Value2`.                                                                  |
 | `--body` or `-b`               | `""`       | Request payload (e.g., JSON or form data). Required for `POST`/`PUT`.                                         |
@@ -86,7 +87,9 @@ yahba run --url=http://example.com --requests=100 --rps=10
 
 - **max**: every worker sends requests back-to-back for `--duration`, so throughput is limited only by the server (comparable to `siege -c`, `ab -c`, `wrk`). Use `--workers` as the concurrency level and `-k` for keep-alive.
 - **requests** and **ramp** are open loop: requests are sent on a fixed schedule regardless of how slowly the server responds, and latency is measured from the scheduled send time, so queueing is included rather than hidden. The report shows configured vs. achieved RPS and warns when workers could not keep up; raise `--workers` if so.
-- **ramp** raises the rate each step until a step exceeds `--max-error-rate`, exceeds `--max-p99`, or achieves under 90% of its target rate. It reports the last passing rate (sustained) and the first failing rate (breaking).
+- **ramp** raises the rate each step until a step exceeds `--max-error-rate`, exceeds `--max-p99`, or achieves under 90% of its target rate. It reports the last passing rate (sustained) and the first failing rate (breaking), marks the **knee** (first step whose p99 reaches 2x the first step's), and prints a latency histogram per step. Step results stream to stderr as they finish.
+- Any error, including a missed `--min-sustained-rps`, makes `yahba run` exit with status 1.
+- The TUI (`yahba tui`) has a Mode selector (left/right) for all three modes, a live per-step table in ramp mode, and the same knee/histogram report.
 - Throughput is bytes divided by wall-clock test time.
 
 ### Examples

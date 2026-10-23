@@ -176,7 +176,7 @@ func TestRunRampFindsBreakingPoint(t *testing.T) {
 	cfg.StepDuration = 2 * time.Second
 	cfg.MaxErrorRate = 5
 
-	rr, err := RunRamp(context.Background(), cfg, testFactory)
+	rr, err := RunRamp(context.Background(), cfg, testFactory, nil)
 	require.NoError(t, err)
 	require.GreaterOrEqual(t, len(rr.Steps), 2)
 
@@ -184,6 +184,30 @@ func TestRunRampFindsBreakingPoint(t *testing.T) {
 	assert.Equal(t, 20, rr.SustainedRPS)
 	assert.Equal(t, 60, rr.BreakingRPS)
 	assert.Contains(t, rr.StopReason, "error rate")
+
+	for _, st := range rr.Steps {
+		assert.NotEmpty(t, st.Histogram)
+		assert.NotEmpty(t, st.P999)
+		assert.NotEmpty(t, st.Max)
+	}
+}
+
+func TestRunRampReportsLiveSteps(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("ok"))
+	}))
+	defer srv.Close()
+
+	cfg := baseConfig(srv.URL)
+	cfg.RampStart, cfg.RampStep, cfg.RampMax = 10, 10, 20
+	cfg.StepDuration = time.Second
+	cfg.MaxErrorRate = 5
+
+	var live []int
+	rr, err := RunRamp(context.Background(), cfg, testFactory, func(s report.Step) { live = append(live, s.TargetRPS) })
+	require.NoError(t, err)
+	assert.Equal(t, []int{10, 20}, live)
+	assert.Len(t, rr.Steps, 2)
 }
 
 func TestRunRampStopsAtMax(t *testing.T) {
@@ -199,7 +223,7 @@ func TestRunRampStopsAtMax(t *testing.T) {
 	cfg.StepDuration = time.Second
 	cfg.MaxErrorRate = 5
 
-	rr, err := RunRamp(context.Background(), cfg, testFactory)
+	rr, err := RunRamp(context.Background(), cfg, testFactory, nil)
 	require.NoError(t, err)
 	assert.Len(t, rr.Steps, 2)
 	assert.Equal(t, 20, rr.SustainedRPS)

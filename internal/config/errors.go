@@ -27,6 +27,6 @@ var (
 	ErrInvalidMode             = errors.New("invalid mode. Supported modes are requests, max, ramp")
 	ErrRPSTooHigh              = errors.New("requests per second (RPS) exceeds the supported maximum of 100000")
 	ErrInvalidRamp             = errors.New("ramp mode requires --rps-start, --rps-step and --step-duration greater than 0, and --rps-max >= --rps-start")
-	ErrInvalidRampThreshold    = errors.New("--max-error-rate must be in (0,100] and --max-p99 must not be negative")
+	ErrInvalidRampThreshold    = errors.New("--max-error-rate must be in (0,100] and --max-p99 and --min-sustained-rps must not be negative")
 	ErrMissingDefFile          = errors.New("missing definition file name")
 )
