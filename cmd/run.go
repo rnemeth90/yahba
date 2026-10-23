@@ -175,6 +175,11 @@ func runMax(ctx context.Context, c config.Config) error {
 func runRamp(ctx context.Context, c config.Config) error {
 	// live progress goes to stderr so json/yaml on stdout stays parseable
 	live := func(s report.Step) { fmt.Fprintln(os.Stderr, report.FormatStepLine(s)) }
+	limit := "until it breaks (Ctrl+C to stop early)"
+	if c.RampMax > 0 {
+		limit = fmt.Sprintf("up to %d RPS", c.RampMax)
+	}
+	fmt.Fprintf(os.Stderr, "ramping from %d RPS in steps of %d every %s, %s\n", c.RampStart, c.RampStep, c.StepDuration, limit)
 	rr, err := worker.RunRamp(ctx, c, workerFactory, live)
 	if err != nil {
 		return err
