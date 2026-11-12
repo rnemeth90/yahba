@@ -17,6 +17,8 @@ var (
 	ErrHTTP2Disabled           = errors.New("HTTP/2 is disabled")
 	ErrHTTP3Disabled           = errors.New("hTTP/3 is disabled")
 	ErrInvalidHTTPConfig       = errors.New("invalid HTTP config. Only one value can be supplied")
+	ErrHTTP3RequiresHTTPS      = errors.New("HTTP/3 requires an https:// URL")
+	ErrHTTP3Unsupported        = errors.New("HTTP/3 cannot be combined with --proxy, --skip-dns or --resolver")
 	ErrInvalidHost             = errors.New("invalid host")
 	ErrInvalidProtocolScheme   = errors.New("invalid protocol scheme")
 	ErrInvalidProxyAuth        = errors.New("proxy username and password must both be provided")
@@ -29,4 +31,5 @@ var (
 	ErrInvalidRamp             = errors.New("ramp mode requires --rps-start, --rps-step and --step-duration greater than 0, and --rps-max >= --rps-start")
 	ErrInvalidRampThreshold    = errors.New("--max-error-rate must be in (0,100] and --max-p99 and --min-sustained-rps must not be negative")
 	ErrMissingDefFile          = errors.New("missing definition file name")
+	ErrInvalidHTTP3Config      = errors.New("invalid HTTP/3 config. Only one value can be supplied"
 )
