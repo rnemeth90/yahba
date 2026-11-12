@@ -2,14 +2,19 @@ package client
 
 import (
 	"crypto/tls"
+	"io"
 	"net"
 	"net/http"
 	"net/url"
 	"time"
 
+	"github.com/quic-go/quic-go"
+	"github.com/quic-go/quic-go/http3"
 	"github.com/rnemeth90/yahba/internal/config"
 	"golang.org/x/net/http2"
 )
+
+const http3KeepAlivePeriod = 15 * time.Second
 
 func NewClient(cfg config.Config) (*http.Client, error) {
 	cfg.Logger.Debug("Initializing HTTP client")
@@ -24,7 +29,20 @@ func NewClient(cfg config.Config) (*http.Client, error) {
 	}
 
 	var transport http.RoundTripper
-	if cfg.HTTP2 {
+	if cfg.HTTP3 {
+		var keepAlive time.Duration
+		if cfg.KeepAlive {
+			keepAlive = http3KeepAlivePeriod
+		}
+		transport = &http3.Transport{
+			DisableCompression: !cfg.Compression,
+			TLSClientConfig:    &tls.Config{InsecureSkipVerify: cfg.Insecure},
+			QUICConfig: &quic.Config{
+				MaxIdleTimeout:  time.Duration(cfg.Timeout) * time.Second,
+				KeepAlivePeriod: keepAlive,
+			},
+		}
+	} else if cfg.HTTP2 {
 		if cfg.ReuseConnections {
 			transport = &http2.Transport{
 				DisableCompression: !cfg.Compression,
@@ -76,4 +94,15 @@ func NewClient(cfg config.Config) (*http.Client, error) {
 
 	cfg.Logger.Debug("HTTP client successfully initialized with timeout: %d seconds", cfg.Timeout)
 	return client, nil
+}
+
+// Close releases the client's connections. An HTTP/3 transport also owns a UDP
+// socket that only Close frees, so callers should defer this rather than
+// CloseIdleConnections.
+func Close(c *http.Client) {
+	if closer, ok := c.Transport.(io.Closer); ok {
+		closer.Close()
+		return
+	}
+	c.CloseIdleConnections()
 }
