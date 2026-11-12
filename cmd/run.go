@@ -79,6 +79,7 @@ func init() {
 	runCmd.PersistentFlags().StringVarP(&c.Proxy, "proxy", "P", "", "Proxy server (IP:Port)")
 	runCmd.PersistentFlags().BoolVarP(&c.KeepAlive, "keep-alive", "k", false, "Enable HTTP keep-alive")
 	runCmd.PersistentFlags().BoolVar(&c.HTTP2, "http2", false, "Enable HTTP/2 support")
+	runCmd.PersistentFlags().BoolVar(&c.HTTP3, "http3", false, "Enable HTTP/3 (QUIC) support, requires an https:// URL")
 	runCmd.PersistentFlags().StringVarP(&c.LogLevel, "log-level", "l", "error", "Logging level (debug, info, warn, error)")
 	runCmd.PersistentFlags().BoolVar(&c.Compression, "compression", false, "Enable HTTP compression (gzip)")
 	runCmd.PersistentFlags().StringVar(&c.ProxyUser, "proxy-user", "", "Proxy authentication username")
