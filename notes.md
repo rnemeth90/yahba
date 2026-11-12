@@ -43,10 +43,10 @@
 - [x] **CI/CD**: Set up continuous integration and deployment pipelines. (`.github/workflows/build.yaml`: lint, race tests, cross-platform builds, tagged releases)
 - [x] **Scenario-Based Testing**: Chain multiple requests together in a single test run (e.g., authenticate then hit a protected resource). Define flows declaratively in YAML/JSON config files rather than requiring scripting. This is something most simple benchmarking tools lack.
 - [x] **Ramp-Up Profiles**: Support gradually increasing RPS over time and stepped load profiles instead of only constant rate. (`--mode ramp` with `--rps-start/--rps-step/--rps-max/--step-duration`, knee detection, CI exit gate)
+- [x] **HTTP/3 Support**: Add support for HTTP/3.
 
 #### In Progress
 - [ ] **Distributed Load Generation**: Coordinate multiple YAHBA agents to generate load from different machines. The `server` subcommand is already a seed for this. A controller node could distribute jobs across agents and aggregate results into a single report.
-- [ ] **HTTP/3 Support**: Add support for HTTP/3.
 
 #### Pending Tasks / Feature ideas
 
