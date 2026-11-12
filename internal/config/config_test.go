@@ -69,3 +69,28 @@ func TestValidateModes(t *testing.T) {
 	c.MaxErrorRate = 0
 	assert.ErrorIs(t, c.Validate(), ErrInvalidRampThreshold)
 }
+
+func TestValidateHTTP3(t *testing.T) {
+	base := func() Config {
+		return Config{URL: "https://localhost", Method: "GET", Timeout: 5, RPS: 1, Requests: 1, HTTP3: true}
+	}
+
+	c := base()
+	assert.NoError(t, c.Validate())
+
+	c = base()
+	c.URL = "http://localhost"
+	assert.ErrorIs(t, c.Validate(), ErrHTTP3RequiresHTTPS)
+
+	c = base()
+	c.HTTP2 = true
+	assert.ErrorIs(t, c.Validate(), ErrInvalidHTTPConfig)
+
+	c = base()
+	c.Proxy = "http://127.0.0.1:8080"
+	assert.ErrorIs(t, c.Validate(), ErrHTTP3Unsupported)
+
+	c = base()
+	c.Resolver = "1.1.1.1:53"
+	assert.ErrorIs(t, c.Validate(), ErrHTTP3Unsupported)
+}
