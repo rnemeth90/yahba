@@ -104,6 +104,10 @@ func (config *Config) Validate() error {
 		return ErrInvalidProtocolScheme
 	}
 
+	if config.HTTP3 && config.ReuseConnections {
+		return ErrInvalidHTTP3Config
+	}
+
 	u, err := url.Parse(config.URL)
 	if err != nil {
 		return ErrInvalidHost
@@ -179,6 +183,15 @@ func (config *Config) Validate() error {
 
 	if config.HTTP2 && config.HTTP3 {
 		return ErrInvalidHTTPConfig
+	}
+
+	if config.HTTP3 {
+		if u.Scheme != "https" {
+			return ErrHTTP3RequiresHTTPS
+		}
+		if config.Proxy != "" || config.SkipDNS || config.Resolver != "" {
+			return ErrHTTP3Unsupported
+		}
 	}
 
 	return nil
