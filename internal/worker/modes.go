@@ -22,6 +22,7 @@ func RunMax(ctx context.Context, cfg config.Config, reportChan chan<- report.Rep
 		cfg.Logger.Error("Error creating HTTP client: %v", err)
 		return
 	}
+	defer client.Close(c)
 
 	workers := numWorkers(cfg)
 	produce := func(ctx context.Context, jobs chan<- Job) {
@@ -67,6 +68,7 @@ func RunRamp(ctx context.Context, cfg config.Config, factory WorkerFactory, onSt
 	if err != nil {
 		return rr, err
 	}
+	defer client.Close(c)
 
 	workers := numWorkers(cfg)
 	for rps := cfg.RampStart; ; rps += cfg.RampStep {
