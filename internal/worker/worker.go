@@ -120,15 +120,16 @@ func (w *Worker) processJob(job Job) {
 // into a final report. If progressChan is non-nil, each individual result is also
 // forwarded there for real-time progress tracking (e.g. from a TUI).
 func Work(ctx context.Context, cfg config.Config, jobs []Job, reportChan chan<- report.Report, factory WorkerFactory, progressChan chan<- report.Result) {
-	client, err := client.NewClient(cfg)
+	c, err := client.NewClient(cfg)
 	if err != nil {
 		cfg.Logger.Error("Error creating HTTP client: %v", err)
 		return
 	}
+	defer client.Close(c)
 
 	sleep := time.Duration(cfg.Sleep) * time.Second
 	produce := pacedProducer(cfg.RPS, len(jobs), 0, sleep, func(i int) Job { return jobs[i] })
-	rep := runPool(ctx, cfg, client, factory, produce, numWorkers(cfg), progressChan)
+	rep := runPool(ctx, cfg, c, factory, produce, numWorkers(cfg), progressChan)
 	rep.Mode = config.ModeRequests
 	rep.ConfiguredRPS = cfg.RPS
 	warnIfBelowTarget(cfg, rep)
