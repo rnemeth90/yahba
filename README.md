@@ -66,6 +66,7 @@ yahba run --url=http://example.com --requests=100 --rps=10
 | `--skip-dns`                   | `false`    | Skip DNS resolution (target URL must be an IP address). Mutually exclusive with `--resolver`.                 |
 | `--keep-alive` or `-k`         | `false`    | Enable HTTP keep-alive.                                                                                        |
 | `--http2`                      | `false`    | Enable HTTP/2 support. Mutually exclusive with HTTP/3.                                                         |
+| `--http3`                      | `false`    | Enable HTTP/3 (QUIC). Requires an `https://` URL; not compatible with `--http2`, `--proxy`, `--skip-dns` or `--resolver`.|
 | `--reuse-connections` or `-R`  | `false`    | Multiplex connections over a single connection (HTTP/2 only).                                                  |
 | `--compression`                | `false`    | Enable HTTP compression (gzip).                                                                                |
 | `--random-user-agent`          | `false`    | Randomize the `User-Agent` header per request.                                                                 |
