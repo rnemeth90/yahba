@@ -85,14 +85,9 @@ func TestSetOutputDestination(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		var buf bytes.Buffer
 		l := New("info", tt.destination, false)
-		l.Logger.SetOutput(&buf) // Redirect to buffer to verify output
-
-		l.Info("Test message")
-
-		if !strings.Contains(buf.String(), "Test message") {
-			t.Errorf("expected message to be logged to %s, got %v", tt.destination, buf.String())
+		if got := l.Logger.Writer(); got != tt.expected {
+			t.Errorf("destination %q: expected writer %v, got %v", tt.destination, tt.expected, got)
 		}
 	}
 
@@ -105,10 +100,10 @@ func TestSetOutputDestination(t *testing.T) {
 			}
 		}
 	}()
+
 	l.Info("Test file output message")
 
-	fileOutput := l.Logger.Writer().(*os.File)
-	data, err := os.ReadFile(fileOutput.Name())
+	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("failed to read log file: %v", err)
 	}
