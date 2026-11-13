@@ -31,5 +31,5 @@ var (
 	ErrInvalidRamp             = errors.New("ramp mode requires --rps-start, --rps-step and --step-duration greater than 0, and --rps-max >= --rps-start")
 	ErrInvalidRampThreshold    = errors.New("--max-error-rate must be in (0,100] and --max-p99 and --min-sustained-rps must not be negative")
 	ErrMissingDefFile          = errors.New("missing definition file name")
-	ErrInvalidHTTP3Config      = errors.New("invalid HTTP/3 config. Only one value can be supplied"
+	ErrInvalidHTTP3Config      = errors.New("invalid HTTP/3 config. Only one value can be supplied")
 )
