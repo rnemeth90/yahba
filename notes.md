@@ -50,6 +50,7 @@
 
 #### Pending Tasks / Feature ideas
 
+- [ ] **Linear Ramp**: In addition to the step ramp  up in modes.go, we should support a linear ramp
 - [ ] **Plugin System**: Enable extensibility for custom report formats, etc.
 - [ ] **Rate Limiting Logic**: Implement logic for rate limiting (e.g., exponential backoffs for failed requests).
 - [ ] **Comparison Mode**: Run the same test against two endpoints (e.g., old vs. new deployment) and produce a side-by-side diff of latency, throughput, and error rates. Useful for regression testing and deploy confidence checks.

@@ -112,18 +112,21 @@ func (l *Logger) SetOutputDestination(destination string) error {
 
 	dest := strings.ToLower(destination)
 
+	var f *os.File
 	switch dest {
 	case "stdout":
 		l.Logger = log.New(os.Stdout, "", log.LstdFlags)
 	case "stderr":
 		l.Logger = log.New(os.Stderr, "", log.LstdFlags)
 	default:
-		f, err := os.OpenFile(destination, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
+		f, err := os.OpenFile(destination, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o666)
 		if err != nil {
+			f.Close()
 			return err
 		}
 		l.Logger = log.New(f, "", log.LstdFlags)
 	}
 
+	defer f.Close()
 	return nil
 }

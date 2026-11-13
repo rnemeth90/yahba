@@ -3,6 +3,7 @@ package logger
 import (
 	"bytes"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -52,7 +53,7 @@ func TestLogLevelBehavior(t *testing.T) {
 
 	for _, tt := range tests {
 		var buf bytes.Buffer
-		l := New(tt.setLevel, "stdout", false)
+		l := Newlogger_(tt.setLevel, "stdout", false)
 		l.Logger.SetOutput(&buf) // Redirect output to buffer for testing
 
 		switch tt.logLevel {
@@ -95,7 +96,8 @@ func TestSetOutputDestination(t *testing.T) {
 		}
 	}
 
-	l := New("info", "yahba.log", false)
+	logPath := filepath.Join(t.TempDir(), "yahba.log")
+	l := New("info", logPath, false)
 	defer func() {
 		if l.Logger != nil && l.Logger.Writer() != os.Stdout && l.Logger.Writer() != os.Stderr {
 			if f, ok := l.Logger.Writer().(*os.File); ok {
