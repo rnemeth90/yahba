@@ -19,5 +19,4 @@ func HandleError(err error) {
 
 // to do
 func handleError(ctx context.Context, err error, msg string) {
-
 }
