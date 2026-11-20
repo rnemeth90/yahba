@@ -10,7 +10,7 @@ Add a `yahba web` subcommand that serves a browser UI to configure and run load 
 - **Frontend**: TypeScript source in `web/`, bundled with esbuild via `make web` into `internal/web/static/`. The compiled bundle is committed so `go:embed` and `go install` work without Node. Charts use vendored uPlot.
 - **Live updates**: Server-Sent Events (SSE).
 - **Storage**: SQLite at `~/.yahba/history.db` via `modernc.org/sqlite` (pure Go, no cgo).
-- **Security**: binds to `127.0.0.1:8080` by default (`--addr` to override), since the tool can launch load against arbitrary URLs.
+- **Security**: binds to `127.0.0.1:8080` by default (`--addr` to override), since the tool can launch load against arbitrary URLs. Mutating requests must be same-origin (any `Origin` header must match `Host`) and `POST` requires `Content-Type: application/json`, which stops other websites from starting runs through the user's browser.
 
 ## Architecture
 
@@ -39,8 +39,9 @@ Add a `yahba web` subcommand that serves a browser UI to configure and run load 
 
 ## Data Model
 
-- `runs`: id, started_at, duration, status (`running`/`completed`/`stopped`/`aborted`), config JSON, report JSON.
-- `samples`: run_id, ts, and the live metrics, used to replay charts for past runs.
+- `runs`: id, started_at, duration_ms, status (`running`/`completed`/`stopped`/`aborted`/`failed`), config JSON, summary JSON. The summary is the numeric aggregate (totals, RPS, latency percentiles, status codes, bytes) and omits per-request results to keep history small.
+- `samples`: run_id, t (second offset), data JSON (one-second aggregate), used to replay charts for past runs.
+- Proxy credentials are not part of the web run config, since the config is stored in history.
 
 ## Error Handling
 
