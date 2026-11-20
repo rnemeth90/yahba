@@ -13,7 +13,7 @@ TARGETS = \
 	windows-386 \
 	windows-amd64
 
-.PHONY: build test format clean release tag help check-version
+.PHONY: build test format clean release tag help check-version web web-test
 
 build: ## Build for the current platform
 	go build -o $(BINARY_NAME) .
@@ -23,6 +23,12 @@ test: ## Run all tests
 
 format: ## Format all Go source files
 	gofmt -w -s .
+
+web: ## Build the web UI bundle into internal/web/static (requires Node)
+	cd web && npm ci && npm run build
+
+web-test: ## Typecheck and unit-test the web UI (requires Node)
+	cd web && npm ci && npm run typecheck && npm test
 
 clean: ## Remove build artifacts
 	rm -rf build $(BINARY_NAME)

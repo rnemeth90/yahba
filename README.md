@@ -37,7 +37,7 @@ yahba run --url=http://example.com --requests=100 --rps=10
 
 ## Usage
 
-`yahba` exposes three subcommands: `run` (load test), `server` (local test HTTP server), and `tui` (interactive dashboard). All flags below apply to `yahba run`.
+`yahba` exposes four subcommands: `run` (load test), `server` (local test HTTP server), `tui` (interactive terminal dashboard), and `web` (browser GUI). All flags below apply to `yahba run`.
 
 ### Options
 
@@ -69,7 +69,20 @@ yahba run --url=http://example.com --requests=100 --rps=10
 | `--filename`                   | `""`       | Output file name, used when `--out=file`.                                                                      |
 | `--file-name`                  | `""`       | Path to a test definition (def) file. When set, runs the requests defined in the file instead of `--url`. See [Test Definition Files](#test-definition-files). |
 
-### Examples
+### Web GUI
+
+```bash
+yahba web                       # http://127.0.0.1:8080
+yahba web --addr 127.0.0.1:9090 --db ./history.db
+```
+
+Configure and start a test, watch live request-rate and latency charts, stop a run, and browse or compare past runs. History is stored in SQLite at `~/.yahba/history.db` (override with `--db`). The server binds to localhost by default because it can launch load against any URL; do not expose it to untrusted networks.
+
+To rebuild the UI after editing `web/src`, run `make web` (requires Node). The compiled bundle is committed so `go install` works without Node.
+
+---
+
+## Examples
 
 #### Test with Custom Headers
 
