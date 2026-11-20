@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -156,6 +157,64 @@ func TestServerServesIndex(t *testing.T) {
 	body, _ := io.ReadAll(resp.Body)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 	assert.Contains(t, string(body), "YAHBA")
+}
+
+func TestServerRejectsForeignHostHeader(t *testing.T) {
+	api, _, _ := newTestAPI(t)
+
+	for _, method := range []string{http.MethodGet, http.MethodPost} {
+		req, err := http.NewRequest(method, api.URL+"/api/runs", strings.NewReader("{}"))
+		require.NoError(t, err)
+		// Simulate DNS rebinding: the attacker page's Origin matches the
+		// spoofed Host it sent, but neither is a real hostname for this server.
+		req.Host = "evil.example"
+		req.Header.Set("Origin", "http://evil.example")
+		if method == http.MethodPost {
+			req.Header.Set("Content-Type", "application/json")
+		}
+		resp, err := http.DefaultClient.Do(req)
+		require.NoError(t, err, method)
+		resp.Body.Close()
+		assert.Equal(t, http.StatusMisdirectedRequest, resp.StatusCode, method)
+	}
+}
+
+func TestServerAcceptsLoopbackHostHeaders(t *testing.T) {
+	api, _, _ := newTestAPI(t)
+	_, port, err := net.SplitHostPort(strings.TrimPrefix(api.URL, "http://"))
+	require.NoError(t, err)
+
+	for _, host := range []string{"127.0.0.1:" + port, "localhost:" + port} {
+		req, err := http.NewRequest(http.MethodGet, api.URL+"/", nil)
+		require.NoError(t, err)
+		req.Host = host
+		resp, err := http.DefaultClient.Do(req)
+		require.NoError(t, err, host)
+		resp.Body.Close()
+		assert.Equal(t, http.StatusOK, resp.StatusCode, host)
+	}
+}
+
+func TestServerWithAllowedHostsAcceptsExtraHost(t *testing.T) {
+	runner, store := newTestRunner(t)
+	api := httptest.NewServer(NewServer(store, runner, WithAllowedHosts("example.lan")))
+	t.Cleanup(api.Close)
+
+	req, err := http.NewRequest(http.MethodGet, api.URL+"/", nil)
+	require.NoError(t, err)
+	req.Host = "example.lan"
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	resp.Body.Close()
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	req2, err := http.NewRequest(http.MethodGet, api.URL+"/", nil)
+	require.NoError(t, err)
+	req2.Host = "other.example"
+	resp2, err := http.DefaultClient.Do(req2)
+	require.NoError(t, err)
+	resp2.Body.Close()
+	assert.Equal(t, http.StatusMisdirectedRequest, resp2.StatusCode)
 }
 
 func getJSON(t *testing.T, url string, v any) {

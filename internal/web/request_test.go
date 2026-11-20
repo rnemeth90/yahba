@@ -59,3 +59,21 @@ func TestToConfigCapsRequests(t *testing.T) {
 	require.True(t, errors.As(err, &ve))
 	assert.Equal(t, "requests", ve.Field)
 }
+
+func TestToConfigCapsRPS(t *testing.T) {
+	req := validRequest()
+	req.RPS = maxRPS + 1
+	_, err := req.ToConfig()
+	var ve *ValidationError
+	require.True(t, errors.As(err, &ve))
+	assert.Equal(t, "rps", ve.Field)
+}
+
+func TestToConfigCapsTimeout(t *testing.T) {
+	req := validRequest()
+	req.Timeout = maxTimeoutSeconds + 1
+	_, err := req.ToConfig()
+	var ve *ValidationError
+	require.True(t, errors.As(err, &ve))
+	assert.Equal(t, "timeout", ve.Field)
+}

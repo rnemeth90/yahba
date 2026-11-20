@@ -3,10 +3,12 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -45,9 +47,10 @@ var webCmd = &cobra.Command{
 		}
 
 		runner := web.NewRunner(store)
+		opts := allowedHostOptions(webAddr)
 		srv := &http.Server{
 			Addr:              webAddr,
-			Handler:           web.NewServer(store, runner),
+			Handler:           web.NewServer(store, runner, opts...),
 			ReadHeaderTimeout: 10 * time.Second,
 		}
 
@@ -62,6 +65,7 @@ var webCmd = &cobra.Command{
 		case err := <-errCh:
 			return err
 		case <-ctx.Done():
+			stop() // re-arm signal handling so a second Ctrl+C force-kills the process
 		}
 
 		runner.Shutdown()
@@ -75,4 +79,20 @@ func init() {
 	webCmd.Flags().StringVar(&webAddr, "addr", "127.0.0.1:8080", "Address to listen on (keep it on localhost; the UI can launch load tests)")
 	webCmd.Flags().StringVar(&webDB, "db", "", "SQLite history file (default ~/.yahba/history.db)")
 	rootCmd.AddCommand(webCmd)
+}
+
+// allowedHostOptions extends the server's Host-header allowlist with the
+// hostname from --addr, so browsers hitting a LAN IP or custom bind host
+// aren't rejected by the DNS-rebinding guard. A wildcard/empty host (e.g.
+// ":8080") adds nothing; only the loopback defaults apply in that case.
+func allowedHostOptions(addr string) []web.ServerOption {
+	host, _, err := net.SplitHostPort(addr)
+	if err != nil {
+		host = addr // addr had no port
+	}
+	host = strings.Trim(host, "[]")
+	if host == "" {
+		return nil
+	}
+	return []web.ServerOption{web.WithAllowedHosts(host)}
 }

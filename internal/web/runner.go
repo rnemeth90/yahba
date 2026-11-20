@@ -17,6 +17,10 @@ import (
 
 var ErrBusy = errors.New("a run is already active")
 
+// ErrShuttingDown is returned by Start once Shutdown has begun; the server is
+// going away and must not accept new work.
+var ErrShuttingDown = errors.New("server is shutting down")
+
 type activeRun struct {
 	id      int64
 	cancel  context.CancelFunc
@@ -29,14 +33,18 @@ type activeRun struct {
 // Runner executes at most one load test at a time, persisting its samples and
 // final summary and fanning live samples out to subscribers.
 type Runner struct {
-	store  *Store
-	mu     sync.Mutex
-	active *activeRun
+	store        *Store
+	mu           sync.Mutex
+	active       *activeRun
+	shuttingDown atomic.Bool
 }
 
 func NewRunner(store *Store) *Runner { return &Runner{store: store} }
 
 func (r *Runner) Start(req RunRequest) (int64, error) {
+	if r.shuttingDown.Load() {
+		return 0, ErrShuttingDown
+	}
 	cfg, err := req.ToConfig()
 	if err != nil {
 		return 0, err
@@ -48,6 +56,9 @@ func (r *Runner) Start(req RunRequest) (int64, error) {
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	if r.shuttingDown.Load() {
+		return 0, ErrShuttingDown
+	}
 	if r.active != nil {
 		return 0, ErrBusy
 	}
@@ -204,6 +215,7 @@ func (r *Runner) Subscribe(id int64) (past []Sample, ch <-chan Sample, unsubscri
 
 // Shutdown stops the active run, if any, and waits for it to be persisted.
 func (r *Runner) Shutdown() {
+	r.shuttingDown.Store(true)
 	r.mu.Lock()
 	a := r.active
 	r.mu.Unlock()

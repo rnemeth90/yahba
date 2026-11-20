@@ -13,6 +13,14 @@ import (
 // maxRequests bounds the buffered result channels allocated per run.
 const maxRequests = 1_000_000
 
+// maxRPS bounds the requested rate so a single run cannot be used to
+// configure an unbounded flood.
+const maxRPS = 100_000
+
+// maxTimeoutSeconds bounds the per-request timeout; config.Timeout is
+// expressed in whole seconds.
+const maxTimeoutSeconds = 300
+
 // RunRequest is the subset of run options exposed in the web form. Proxy
 // credentials are intentionally excluded because the config is stored in history.
 type RunRequest struct {
@@ -65,6 +73,12 @@ func fieldFor(err error) string {
 func (r RunRequest) ToConfig() (config.Config, error) {
 	if r.Requests > maxRequests {
 		return config.Config{}, &ValidationError{"requests", fmt.Sprintf("requests must be at most %d", maxRequests)}
+	}
+	if r.RPS > maxRPS {
+		return config.Config{}, &ValidationError{"rps", fmt.Sprintf("rps must be at most %d", maxRPS)}
+	}
+	if r.Timeout > maxTimeoutSeconds {
+		return config.Config{}, &ValidationError{"timeout", fmt.Sprintf("timeout must be at most %d seconds", maxTimeoutSeconds)}
 	}
 	if r.Workers <= 0 {
 		return config.Config{}, &ValidationError{"workers", "workers must be greater than 0"}

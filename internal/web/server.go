@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"net"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -22,12 +23,43 @@ type RunDetail struct {
 }
 
 type server struct {
-	store  *Store
-	runner *Runner
+	store        *Store
+	runner       *Runner
+	allowedHosts map[string]struct{}
 }
 
-func NewServer(store *Store, runner *Runner) http.Handler {
-	s := &server{store: store, runner: runner}
+// ServerOption customizes NewServer. It is primarily used to extend the
+// Host-header allowlist beyond the loopback defaults.
+type ServerOption func(*server)
+
+// WithAllowedHosts adds extra hostnames (no port, case-insensitive) to the
+// Host-header allowlist enforced on every request. The loopback names
+// (localhost, 127.0.0.1, ::1) are always allowed regardless of this option.
+func WithAllowedHosts(hosts ...string) ServerOption {
+	return func(s *server) {
+		for _, h := range hosts {
+			h = strings.ToLower(strings.TrimSpace(h))
+			if h == "" {
+				continue
+			}
+			s.allowedHosts[h] = struct{}{}
+		}
+	}
+}
+
+func defaultAllowedHosts() map[string]struct{} {
+	return map[string]struct{}{
+		"localhost": {},
+		"127.0.0.1": {},
+		"::1":       {},
+	}
+}
+
+func NewServer(store *Store, runner *Runner, opts ...ServerOption) http.Handler {
+	s := &server{store: store, runner: runner, allowedHosts: defaultAllowedHosts()}
+	for _, opt := range opts {
+		opt(s)
+	}
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /api/runs", s.startRun)
 	mux.HandleFunc("GET /api/runs", s.listRuns)
@@ -41,7 +73,33 @@ func NewServer(store *Store, runner *Runner) http.Handler {
 		panic(err) // embedded path is fixed at compile time
 	}
 	mux.Handle("GET /", http.FileServerFS(static))
-	return sameOriginOnly(mux)
+	return allowedHostOnly(sameOriginOnly(mux), s.allowedHosts)
+}
+
+// allowedHostOnly blocks DNS-rebinding attacks: it rejects every request
+// (including GET) whose Host header does not match an allowed hostname,
+// regardless of port. Without this, a page on an attacker-controlled domain
+// could resolve to 127.0.0.1 and issue same-origin requests that this server
+// would otherwise treat as trusted.
+func allowedHostOnly(next http.Handler, allowed map[string]struct{}) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if _, ok := allowed[hostnameOnly(r.Host)]; !ok {
+			writeError(w, http.StatusMisdirectedRequest, "host not allowed", "")
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// hostnameOnly strips the port (and IPv6 brackets) from a Host header value
+// and lowercases the result for case-insensitive comparison.
+func hostnameOnly(host string) string {
+	if h, _, err := net.SplitHostPort(host); err == nil {
+		host = h
+	} else {
+		host = strings.Trim(host, "[]")
+	}
+	return strings.ToLower(host)
 }
 
 // sameOriginOnly blocks cross-site requests from a browser: any mutating
@@ -104,6 +162,8 @@ func (s *server) startRun(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, ve.Message, ve.Field)
 	case errors.Is(err, ErrBusy):
 		writeError(w, http.StatusConflict, err.Error(), "")
+	case errors.Is(err, ErrShuttingDown):
+		writeError(w, http.StatusServiceUnavailable, err.Error(), "")
 	case err != nil:
 		writeError(w, http.StatusInternalServerError, err.Error(), "")
 	default:

@@ -92,6 +92,14 @@ func TestRunnerInvalidRequest(t *testing.T) {
 	assert.True(t, errors.As(err, &ve))
 }
 
+func TestRunnerRefusesStartAfterShutdown(t *testing.T) {
+	r, _ := newTestRunner(t)
+	r.Shutdown()
+
+	_, err := r.Start(validRequest())
+	assert.True(t, errors.Is(err, ErrShuttingDown), "got %v", err)
+}
+
 func TestRunnerSubscribeReceivesSamplesAndClose(t *testing.T) {
 	r, store := newTestRunner(t)
 	target := targetServer(t)
