@@ -1,0 +1,24 @@
+{
+  "name": "yahba-web",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "vitest run",
+    "build": "node build.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "private": "true",
+  "dependencies": {
+    "uplot": "^1.6.32"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.12"
+  }
+}
